@@ -28,11 +28,17 @@ class FileProxyTask : public Task
   
  private:
 
-  long readFLP();
+  long readFLP() {
+    if (mRDHversion == 4) return readFLPv4();
+    if (mRDHversion == 6) return readFLPv6();
+    return 0; };
+  long readFLPv4();
+  long readFLPv6();
   long readCONET();
 
   bool mStatus = false;
   bool mCONET = false;
+  int mRDHversion = 4;
   bool mDumpData = false;
   std::ifstream mFile;
   char mBuffer[1048576];
@@ -41,9 +47,10 @@ class FileProxyTask : public Task
 void
 FileProxyTask::init(InitContext& ic)
 {
-  auto infilename = ic.options().get<std::string>("infilename");
-  mCONET = ic.options().get<bool>("CONET");
-  mDumpData = ic.options().get<bool>("dump-data");
+  auto infilename = ic.options().get<std::string>("atc-file-proxy-input-filename");
+  mCONET = ic.options().get<bool>("atc-file-proxy-conet-mode");
+  mDumpData = ic.options().get<bool>("atc-file-proxy-dump-data");
+  mRDHversion = ic.options().get<int>("atc-file-proxy-rdh-version");
 
   /** open input file **/
   std::cout << " --- Opening input file: " << infilename << std::endl;
@@ -60,7 +67,7 @@ FileProxyTask::init(InitContext& ic)
 };
 
 long
-FileProxyTask::readFLP()
+FileProxyTask::readFLPv4()
 {
   /** read input file **/
   char *pointer = mBuffer;
@@ -70,7 +77,7 @@ FileProxyTask::readFLP()
     return 0;      
   }
   long payload = 64;
-  auto rdh = reinterpret_cast<o2::header::RAWDataHeader*>(pointer);
+  auto rdh = reinterpret_cast<o2::header::RAWDataHeaderV4*>(pointer);
   while (!rdh->stop) {
     if (!mFile.read(pointer + rdh->headerSize, rdh->offsetToNext - rdh->headerSize)) {
       std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
@@ -85,7 +92,39 @@ FileProxyTask::readFLP()
       return 0;      
     }
     payload += 64;
-    rdh = reinterpret_cast<o2::header::RAWDataHeader*>(pointer);
+    rdh = reinterpret_cast<o2::header::RAWDataHeaderV4*>(pointer);
+  }
+  
+  return payload;
+}
+
+long
+FileProxyTask::readFLPv6()
+{
+  /** read input file **/
+  char *pointer = mBuffer;
+  if (!mFile.read(pointer, 64)) {
+    std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
+    mStatus = true;
+    return 0;      
+  }
+  long payload = 64;
+  auto rdh = reinterpret_cast<o2::header::RAWDataHeaderV6*>(pointer);
+  while (!rdh->stop) {
+    if (!mFile.read(pointer + rdh->headerSize, rdh->offsetToNext - rdh->headerSize)) {
+      std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
+      mStatus = true;
+      return 0;      
+    }
+    payload += (rdh->offsetToNext - rdh->headerSize);
+    pointer += rdh->offsetToNext;
+    if (!mFile.read(pointer, 64)) {
+      std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
+      mStatus = true;
+      return 0;      
+    }
+    payload += 64;
+    rdh = reinterpret_cast<o2::header::RAWDataHeaderV6*>(pointer);
   }
   
   return payload;
@@ -197,9 +236,10 @@ WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
 	Outputs{OutputSpec(ConcreteDataTypeMatcher{"TOF", "RAWDATA"})},
 	AlgorithmSpec(adaptFromTask<FileProxyTask>()),
 	Options{
-	  {"infilename", VariantType::String, "", {"Input file name"}},
-	  {"dump-data", VariantType::Bool, false, {"Dump data"}},
-	  {"CONET", VariantType::Bool, false, {"CONET mode"}}}
+	  {"atc-file-proxy-input-filename", VariantType::String, "", {"Input file name"}},
+	  {"atc-file-proxy-dump-data", VariantType::Bool, false, {"Dump data"}},
+	  {"atc-file-proxy-rdh-version", VariantType::Int, 4, {"RDH version"}},
+	  {"atc-file-proxy-conet-mode", VariantType::Bool, false, {"CONET mode"}}}
     }
   };
 }
