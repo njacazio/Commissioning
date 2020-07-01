@@ -16,6 +16,7 @@ o2-dpl-raw-proxy -b --session default \
     | o2-tof-compressor -b \
     --tof-compressor-rdh-version 6 \
     --tof-compressor-config "$COMPR_CONF" \
+    | o2-qc -b --config json://${PWD}/tofcompressed.json  \
     | o2-dpl-output-proxy -b --session default \
     --dataspec "downstream:TOF/CRAWDATA" \
     --channel-config "name=downstream,type=push,method=bind,address=ipc:///tmp/stf-pipe-0,rateLogging=1,transport=shmem"
