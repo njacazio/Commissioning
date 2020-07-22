@@ -37,6 +37,8 @@ class SclProxyTask : public Task
 
   bool mStatus = false;
   bool mDumpData = false;
+  bool mBlocking = false;
+  bool mQuitEOT = false;
   char mBuffer[0x1000000];
 };
 
@@ -45,10 +47,19 @@ SclProxyTask::init(InitContext& ic)
 {
 
   mDumpData = ic.options().get<bool>("dump-data");
+  mBlocking = ic.options().get<bool>("blocking");
+  mQuitEOT = ic.options().get<bool>("eot-quit");
 
-  //  tofbufRule(TOFBUF_NOWAIT);
-  tofbufRule(TOFBUF_BLOCKING);
-  tofbufMap();
+  auto rule = mBlocking ? TOFBUF_BLOCKING : TOFBUF_NOWAIT;
+  std::cout << " --- tofbufRule " << (mBlocking ? "TOFBUF_BLOCKING" : "TOFBUF_NOWAIT") << std::endl; 
+  tofbufRule(rule);
+  if (tofbufMap() != EXIT_SUCCESS) {
+    std::cout << " --- tofbufMap failure " << std::endl;
+    mStatus = true;
+  }
+  else {
+    std::cout << " --- tofbufMap success " << std::endl;
+  }
 
 };
 
@@ -67,43 +78,63 @@ SclProxyTask::run(ProcessingContext& pc)
   int bufferPayload = 0;
   int link = tofbufPop(&bufferPayload, reinterpret_cast<unsigned int *>(mBuffer));
   if (link < 0) {
+    std::cout << " --- tofbufPop did not receive data: sleep 1 second and retry " << std::endl;
     sleep(1);
     return;
   }
-  std::cout << " --- got data buffer from link #" << link << ": " << bufferPayload << " bytes" << std::endl;
-  /** end of transmission **/
-  if (tofbufCheckEOT(reinterpret_cast<unsigned int *>(mBuffer))) {
-    std::cout << " --- end of transmission detected: so long, and thanks for all the bytes" << std::endl;
-    mStatus = true;
-  }
+  std::cout << " --- tofbufPop got data buffer from link #" << link << ": " << bufferPayload << " bytes" << std::endl;
+
   /** no payload **/
-  if (bufferPayload == 0) 
+  if (bufferPayload == 0) {
     return;
+  }
 
-  /** scan buffer to find DRM chunks **/
+  /** check tofbuf header **/
+  uint32_t *word = reinterpret_cast<uint32_t *>(mBuffer);
+  printf(" --- tofbufPop header: %08x (%d words, %d bytes) \n", *word, *word, *word * 4);
+  if ((*word * 4) + 4 != bufferPayload) {
+    std::cout << " --- tofbufPop header inconsistency " << std::endl;
+    return;
+  }
+
+  /** start of transmission **/
+  if (tofbufCheckSOTEOT(reinterpret_cast<unsigned int *>(mBuffer)) == TOFBUF_SOT) {
+    std::cout << " --- start of transmission detected: let's rock" << std::endl;
+    return;
+  }
+
+  /** end of transmission **/
+  if (tofbufCheckSOTEOT(reinterpret_cast<unsigned int *>(mBuffer)) == TOFBUF_EOT) {
+    std::cout << " --- end of transmission detected: so long, and thanks for all the bytes" << std::endl;
+    if (mQuitEOT) mStatus = true;
+    return;
+  }
+
+  /** loop over DRM data in the buffer **/
   char *eob = mBuffer + bufferPayload;
-  char *pointer = mBuffer;
+  char *pointer = mBuffer + 4;
   while (pointer < eob) {
-    uint32_t *word = reinterpret_cast<uint32_t *>(pointer);
+    word = reinterpret_cast<uint32_t *>(pointer);
+ 
+    // check TOF data header 
     if (!(*word & 0x40000000)) {
-      printf(" --- unrecognised word: %08x \n ", *word);
-      pointer += 4;
-      continue;
+      printf(" --- this is not a TOF data header, give up the full buffer: 0x%08x (@0x%08x) \n", *word, (pointer - mBuffer));
+      return;
     }
-
+    
     auto tofDataHeader = reinterpret_cast<const o2::tof::raw::TOFDataHeader_t*>(pointer);
-    auto payload = tofDataHeader->bytePayload + 4;
-
+    auto payload = tofDataHeader->bytePayload;
+    
+    // dump the data to screen
     if (mDumpData) {
       std::cout << " --- dump data: " << payload << " bytes" << std::endl;
-      word = reinterpret_cast<uint32_t *>(pointer);
       for (int i = 0; i < payload / 4; ++i) {
-	printf(" 0x%08x \n", *word);
-	word++;
+	word = reinterpret_cast<uint32_t *>(pointer);
+	printf("     0x%08x \n", *(word + i));
       }
       std::cout << " --- end of dump data " << std::endl;
     }
-    
+
     /** output **/
     auto device = pc.services().get<o2::framework::RawDeviceService>().device();
     auto outputRoutes = pc.services().get<o2::framework::RawDeviceService>().spec().outputs;
@@ -144,6 +175,8 @@ WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
 	Outputs{OutputSpec(ConcreteDataTypeMatcher{"TOF", "RAWDATA"})},
 	AlgorithmSpec(adaptFromTask<SclProxyTask>()),
 	Options{
+	  {"blocking", VariantType::Bool, false, {"Blocking mode"}},
+	  {"eot-quit", VariantType::Bool, false, {"Quit at EOT"}},
 	  {"dump-data", VariantType::Bool, false, {"Dump data"}}}
     }
   };
