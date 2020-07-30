@@ -11,6 +11,20 @@ target_link_libraries(atc-file-proxy
   )
 install(TARGETS atc-file-proxy RUNTIME DESTINATION bin)
 
+add_executable(atc-writer-proxy src/writer-proxy.cc)
+target_link_libraries(atc-writer-proxy
+  PUBLIC
+  PRIVATE
+  FairMQ::FairMQ
+  AliceO2::Framework
+  AliceO2::Headers
+  ROOT::Core
+  ms_gsl::ms_gsl
+  arrow::arrow_shared
+  arrow::gandiva_shared
+  )
+install(TARGETS atc-writer-proxy RUNTIME DESTINATION bin)
+
 if(TOFBUF_FOUND)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
