@@ -26,3 +26,4 @@ find_package(tofbuf)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${Boost_INCLUDE_DIR})
 
 add_subdirectory(RAW)
+add_subdirectory(ANALYSIS)
