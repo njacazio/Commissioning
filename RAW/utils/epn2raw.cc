@@ -62,7 +62,7 @@ main(int argc, char **argv)
     /** check for consistency **/
     uint32_t *RDHs = reinterpret_cast<uint32_t *>(buffer);
     if (*RDHs != 0x00044004) {
-      printf(" --- wrong RDH signature at offset %d : %08x \n ", offset, *RDHs);
+      printf(" --- wrong RDH signature at offset %ld : %08x \n ", offset, *RDHs);
       break;
     }
 
