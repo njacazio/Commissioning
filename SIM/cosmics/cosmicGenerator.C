@@ -37,7 +37,7 @@ GeneratorCosmic::ReadEvent(FairPrimaryGenerator* primGen)
   double vx = s1;
   double vy = s2;
   double vz = s3;
-  double vt = random.Uniform(-25., 25.);
+  double vt = random.Uniform(0., 25.e-9);
     
   double px = momentum * n1;
   double py = momentum * n2;
