@@ -11,4 +11,4 @@ DIR=$(dirname "${BASH_SOURCE[0]}")
 
 echo " --- running simulation: ${NEVENTS} events "
 
-o2-sim-serial -n ${NEVENTS} -g extgen -m TOF --field 0 --extGenFile ${DIR}/cosmicGenerator.C
+o2-sim-serial -n ${NEVENTS} -g extgen -m TOF --field 0 --configKeyValues "GeneratorExternal.fileName=${DIR}/cosmicGenerator.C"
