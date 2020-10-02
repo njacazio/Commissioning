@@ -41,7 +41,7 @@ class FileProxyTask : public Task
   int mRDHversion = 4;
   bool mDumpData = false;
   std::ifstream mFile;
-  char mBuffer[1048576];
+  char mBuffer[4194304];
 };
 
 void
@@ -134,34 +134,24 @@ long
 FileProxyTask::readCONET()
 {
 
-  char *pointer = mBuffer;
-  const uint32_t *word;
+  uint32_t word;
 
-  /** read TOF data header **/
-  if (!mFile.read(pointer, 4)) {
+  /** read size of tof buffer **/
+  if (!mFile.read((char *)&word, 4)) {
     std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
     mStatus = true;
     return 0;      
   }
-  word = reinterpret_cast<const uint32_t *>(pointer);
-  if (*word == 0x00080000) {
-    printf(" --- unrecognised word: %08x \n ", *word);
-    if (!mFile.read(pointer, 4)) {
-      std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
-      mStatus = true;
-      return 0;      
-    }
-  }
-  auto tofDataHeader = reinterpret_cast<const o2::tof::raw::TOFDataHeader_t*>(pointer);
-  auto bytePayload = tofDataHeader->bytePayload;
+  auto bytePayload = word * 4;
+  printf(" --- tofBuffer: %08x (%d bytes) \n", word, bytePayload);
 
   /** read payload **/
-  if (!mFile.read(pointer + 4, bytePayload)) {
+  if (!mFile.read(mBuffer, bytePayload)) {
     std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
     mStatus = true;
     return 0;      
   }
-  return bytePayload + 4;
+  return bytePayload;
 }
 
 void
