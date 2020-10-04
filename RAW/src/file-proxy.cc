@@ -170,8 +170,11 @@ FileProxyTask::run(ProcessingContext& pc)
   int payload = 0;
   if (mCONET) payload = readCONET();
   else payload = readFLP();
-  if (payload == 0) return;
-
+  if (payload == 0) {
+    mStatus = true;
+    return;
+  }
+    
   if (mDumpData) {
     std::cout << " --- dump data: " << payload << " bytes" << std::endl;
     uint32_t *word = reinterpret_cast<uint32_t *>(mBuffer);
