@@ -1,5 +1,3 @@
-double tdc_width = 24.3660e-12; // [s]
-
 void print_noisy_channel(int i, std::ofstream &fout)
 {
   int sm = i / 9600;
@@ -17,13 +15,17 @@ void print_noisy_channel(int i, std::ofstream &fout)
 }
 
 void
-noisy_channels(const char *fname, double max_noise = 10.e3 /* [Hz] */)
+noisy_channels(const char *fname, double max_noise = 1.e3 /* [Hz] */)
 {
   auto fin = TFile::Open(fname);
+  auto hRuns = (TH1 *)fin->Get("hRuns");
   auto hTimeWin = (TH1 *)fin->Get("hTimeWin");
   auto hCrateCounter = (TH1 *)fin->Get("hCrateCounter");
   auto hIndexCounter = (TH1 *)fin->Get("hIndexCounter");
 
+  double tdc_width = 24.3660e-12; // [s]
+  auto time_window = hTimeWin->GetBinContent(1) / hRuns->GetBinContent(1) * tdc_width;
+  
   std::ofstream fout;
   fout.open("noisy_channels.txt", std::ios::out);
   
@@ -33,7 +35,10 @@ noisy_channels(const char *fname, double max_noise = 10.e3 /* [Hz] */)
     auto counte = sqrt(count);
     auto icrate = i / 2400;
     auto iTRM   = i / 240;
-    auto itime = hCrateCounter->GetBinContent(icrate + 1) * hTimeWin->GetBinContent(1) * tdc_width;
+    auto itime = hCrateCounter->GetBinContent(icrate + 1) * time_window;
+
+    if (itime < 1.e-6) continue;
+    
     auto rate = (float)count / itime;
     auto ratee =  counte / itime ;
     hIndexNoise->SetBinContent(i + 1, rate);
@@ -43,4 +48,17 @@ noisy_channels(const char *fname, double max_noise = 10.e3 /* [Hz] */)
   }
 
   fout.close();
+
+  auto c = new TCanvas("c", "c", 800, 800);
+  c->SetLogy();
+  auto hframe = c->DrawFrame(0., 0.1, 172800., 100.e6, ";channel index;rate (Hz)");
+  hframe->GetXaxis()->SetMaxDigits(6);
+  hIndexNoise->SetMarkerStyle(24);
+  hIndexNoise->SetMarkerSize(0.8);
+  hIndexNoise->Draw("same");
+
+  TLine line;
+  line.SetLineStyle(kDashed);
+  line.DrawLine(0., 1.e3, 172800., 1.e3);
+  
 }
