@@ -1,9 +1,9 @@
-#include "/home/alidock/TOFCommissioning/ANALYSIS/src/compressed-analysis.hh"
+#include "CompressedAnalysis.h"
 #include <iostream>
 
 using namespace o2::tof::compressed;
 
-class DiagnosticsAnalysis : public CompressedAnalysis
+class DiagnosticsAnalysis : public o2::tof::CompressedAnalysis
 {
 public:
   DiagnosticsAnalysis() = default;
@@ -11,6 +11,8 @@ public:
 
   bool initialize() final;
   bool finalize() final;
+
+  void setFileName(std::string val) { mFileName = val; };
 
 private:
 
@@ -29,7 +31,8 @@ private:
                       const CrateTrailer_t* crateTrailer,
 		      const Diagnostic_t* diagnostics,
                       const Error_t* errors) final;  
-  
+
+  std::string mFileName = "noise_analysis.root";
   int mDiagnostics[72][12][32]; // [crate][slot][bit]
 
 };
@@ -49,7 +52,7 @@ bool
 DiagnosticsAnalysis::finalize()
 {
   std::cout << "--- finalize DiagnosticsAnalysis" << std::endl;
-  TFile fout("diagnostics.root", "RECREATE");
+  TFile fout(mFileName.c_str(), "RECREATE");
   for (int icrate = 0; icrate < 72; ++icrate) {
     TH2F h(Form("hDiagnostics_%02d", icrate), ";bit;slot", 32, 0., 32., 12, 1., 13.);
     for (int islot = 0; islot < 32; ++islot) {
@@ -97,9 +100,11 @@ void DiagnosticsAnalysis::trailerHandler(const CrateHeader_t* crateHeader,
   }
 }
 
-CompressedAnalysis*
-diagnostics()
+o2::tof::CompressedAnalysis*
+diagnostic_analysis(std::string fileName = "diagnostic_analysis.root")
 {
-  return new DiagnosticsAnalysis;
+  auto analysis = new DiagnosticsAnalysis;
+  analysis->setFileName(fileName);
+  return analysis;
 }
 
