@@ -1,6 +1,15 @@
 #! /usr/bin/env bash
 
+if [ -z "$1" ]; then
+    echo "usage: ./noise_analysis [filein] [fileout]"
+    exit 1
+fi
 FILEIN=$1
+
+if [ -z "$2" ]; then
+    echo "usage: ./noise_analysis [filein] [fileout]"
+    exit 1
+fi
 FILEOUT=$2
 
 atc-file-proxy -b \

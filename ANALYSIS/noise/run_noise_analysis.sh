@@ -1,5 +1,10 @@
 #! /usr/bin/env bash
 
+if [ -z "$1" ]; then
+    echo "usage: ./run_noise_analysis [datadir]"
+    exit 1
+fi
+
 DIR=$1
 
 rm -rf $DIR/noise_analysis.*.root
