@@ -1,1 +1,4 @@
 *~
+*.raw
+dpl-config.json
+*.root
