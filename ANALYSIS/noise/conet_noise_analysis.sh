@@ -11,6 +11,7 @@ while true ; do
     FILE=$RUN.noise_analysis.root
 
     atc-scl-proxy -b \
+		  --eot-quit \ 
 	| \
 	o2-tof-compressor -b \
 			  --tof-compressor-conet-mode \
