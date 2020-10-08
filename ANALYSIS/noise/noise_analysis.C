@@ -45,7 +45,8 @@ private:
   TH1 *hTimeWin = nullptr;
   TH1 *hCrateCounter = nullptr;
   TH1 *hIndexCounter = nullptr;
-  TH2 *hHitTime = nullptr;
+  TH2 *hTRMTime = nullptr;
+  
   
 };
 
@@ -57,7 +58,7 @@ NoiseAnalysis::initialize()
   hTimeWin = new TH1F("hTimeWin", "", 1, 0., 1.);
   hCrateCounter = new TH1F("hCrateCounter", "", 72, 0., 72.);
   hIndexCounter = new TH1F("hIndexCounter", "", 172800, 0., 172800.);
-  hHitTime = new TH2F("hHitTime", "", 12, 0., 12., 1048576, 0., 1048576.);
+  hTRMTime = new TH2F("hTRMTime", ";TRM id;hit time", 720, 0., 720., 16384, 0., 2097152.);
   return true;
 }
 
@@ -80,7 +81,7 @@ NoiseAnalysis::finalize()
   for (int i = 0; i < 172800; ++i) hIndexCounter->SetBinContent(i + 1, mIndexCounter[i]);
   hIndexCounter->Write();
 
-  hHitTime->Write();
+  hTRMTime->Write();
 
   fout.Close();
 
@@ -100,6 +101,8 @@ void NoiseAnalysis::frameHandler(const CrateHeader_t* crateHeader,
 				 const FrameHeader_t* frameHeader,
 				 const PackedHit_t* packedHits)
 {
+ 
+
   for (int i = 0; i < frameHeader->numberOfHits; ++i) {
     auto packedHit = packedHits + i;
 
@@ -112,10 +115,10 @@ void NoiseAnalysis::frameHandler(const CrateHeader_t* crateHeader,
     auto channel = packedHit->channel; // [0-7]
     auto index = channel + 8 * tdcID + 120 * chain + 240 * (trmID - 3) + 2400 * drmID; // [0-172799]
 
-    hHitTime->Fill(trmID - 3, time);
+    hTRMTime->Fill((trmID - 3) + (10 * drmID) , time);
 
     if (time < mTimeMin) continue;
-    if (time > mTimeMax) continue;
+    if (time >= mTimeMax) continue;
     mIndexCounter[index]++;
 
   }
