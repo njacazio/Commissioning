@@ -98,6 +98,8 @@ SclProxyTask::run(ProcessingContext& pc)
     std::cout << " --- tofbufPop header inconsistency " << std::endl;
     return;
   }
+  char *pointer = mBuffer + 4;
+  auto payload = (*word * 4);
 
   /** start of transmission **/
   if (tofbufCheckSOTEOT(reinterpret_cast<unsigned int *>(mBuffer)) == TOFBUF_SOT) {
@@ -111,11 +113,6 @@ SclProxyTask::run(ProcessingContext& pc)
     if (mQuitEOT) mStatus = true;
     return;
   }
-
-  /** loop over DRM data in the buffer **/
-  //  char *eob = mBuffer + bufferPayload;
-  char *pointer = mBuffer + 4;
-  auto payload = bufferPayload;
 
   /** dump the data to screen **/
   if (mDumpData) {
