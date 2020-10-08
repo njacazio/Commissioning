@@ -1,4 +1,4 @@
-#include "CompressedAnalysis.h"
+#include "TOFWorkflowUtils/CompressedAnalysis.h"
 #include <iostream>
 
 class NoiseAnalysis : public o2::tof::CompressedAnalysis
@@ -131,6 +131,7 @@ noise_analysis(int timeMin = 4096, int timeMax = 36864, std::string fileName = "
   analysis->setTimeMin(timeMin);
   analysis->setTimeMax(timeMax);
   analysis->setFileName(fileName);
+  analysis->setDecoderVerbose(false);
   return analysis;
 }
 

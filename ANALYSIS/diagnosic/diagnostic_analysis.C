@@ -1,4 +1,4 @@
-#include "CompressedAnalysis.h"
+#include "TOFWorkflowUtils/CompressedAnalysis.h"
 #include <iostream>
 
 using namespace o2::tof::compressed;
