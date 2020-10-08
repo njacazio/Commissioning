@@ -27,8 +27,8 @@ using namespace o2::framework;
 class SclProxyTask : public Task
 {
  public:
-  SclProxyTask() = default;
-  ~SclProxyTask() override = default;
+  SclProxyTask() { mBuffer = new char[mBufferSize]; };
+  ~SclProxyTask() override { delete[] mBuffer; };
 
   void init(InitContext& ic) final;
   void run(ProcessingContext& pc) final;
@@ -39,7 +39,8 @@ class SclProxyTask : public Task
   bool mDumpData = false;
   bool mBlocking = false;
   bool mQuitEOT = false;
-  char mBuffer[0x1000000];
+  char* mBuffer = nullptr;
+  const int mBufferSize = 33554432;
 };
 
 void
