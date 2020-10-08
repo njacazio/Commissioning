@@ -48,6 +48,7 @@ void
 FileProxyTask::init(InitContext& ic)
 {
   auto infilename = ic.options().get<std::string>("atc-file-proxy-input-filename");
+  auto startfrom = ic.options().get<int>("atc-file-proxy-start-from");
   mCONET = ic.options().get<bool>("atc-file-proxy-conet-mode");
   mDumpData = ic.options().get<bool>("atc-file-proxy-dump-data");
   mRDHversion = ic.options().get<int>("atc-file-proxy-rdh-version");
@@ -59,7 +60,9 @@ FileProxyTask::init(InitContext& ic)
     std::cout << " --- File is not open " << std::endl;
     mStatus = true;
   }
-
+  std::cout << " --- Start reading from byte offset: " << startfrom << std::endl;
+  mFile.seekg(startfrom, std::ios::beg);
+  
   if (mCONET) {
     std::cout << " --- CONET mode " << std::endl; 
   }
@@ -135,7 +138,8 @@ FileProxyTask::readCONET()
 {
 
   uint32_t word;
-
+  auto current = mFile.tellg();
+  
   /** read size of tof buffer **/
   if (!mFile.read((char *)&word, 4)) {
     std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
@@ -143,7 +147,7 @@ FileProxyTask::readCONET()
     return 0;      
   }
   auto bytePayload = word * 4;
-  printf(" --- tofBuffer: %08x (%d bytes) \n", word, bytePayload);
+  printf(" --- tofBuffer: %08x (%d bytes) at %d \n", word, bytePayload, current);
 
   /** read payload **/
   if (!mFile.read(mBuffer, bytePayload)) {
@@ -230,6 +234,7 @@ WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
 	AlgorithmSpec(adaptFromTask<FileProxyTask>()),
 	Options{
 	  {"atc-file-proxy-input-filename", VariantType::String, "", {"Input file name"}},
+	  {"atc-file-proxy-start-from", VariantType::Int, 0, {"Start reading from byte"}},
 	  {"atc-file-proxy-dump-data", VariantType::Bool, false, {"Dump data"}},
 	  {"atc-file-proxy-rdh-version", VariantType::Int, 4, {"RDH version"}},
 	  {"atc-file-proxy-conet-mode", VariantType::Bool, false, {"CONET mode"}}}
