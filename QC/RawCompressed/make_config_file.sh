@@ -11,7 +11,7 @@ CONFIGFILE="o2-raw-reader-workflow.ini"
 echo "Writing configuration for ${FILES} in ${CONFIGFILE}"
 echo "[defaults]" > $CONFIGFILE
 echo "dataOrigin = TOF" >> $CONFIGFILE
-echo "dataDescription = RAWDATA/emulated.raw" >> $CONFIGFILE
+echo "dataDescription = RAWDATA" >> $CONFIGFILE
 
 NFILES=0
 for i in $FILES; do

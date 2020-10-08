@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
 import argparse
-from ROOT import TFile
+from ROOT import TFile, gPad
 import os
 
 
@@ -15,7 +15,7 @@ def convert_timestamp(ts):
     return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def get_ccdb_obj(path, timestamp=-1, dest="/tmp/", verbose=False):
+def get_ccdb_obj(path, timestamp=-1, dest="/tmp/", show=True, verbose=False):
     """
     Gets the ccdb object from 'path' and 'timestamp' and downloads it into 'dest'
     """
@@ -35,6 +35,12 @@ def get_ccdb_obj(path, timestamp=-1, dest="/tmp/", verbose=False):
         def print_info(entry):
             print("Object", entry, meta[entry])
         print_info("Last-Modified")
+        if show:
+          obj = f.Get("ccdb_object")
+          obj.Draw()
+          gPad.Update()
+          input("Press enter to continue")
+          obj.Print("ALL")
 
 
 if __name__ == "__main__":
