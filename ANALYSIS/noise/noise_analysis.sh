@@ -3,7 +3,7 @@
 FILEIN=$1
 FILEOUT=$2
 
-atc-file-proxy -b \
+atc-file-proxy -b --rate 200 \
 	       --atc-file-proxy-conet-mode \
 	       --atc-file-proxy-input-filename ${FILEIN} \
     | \

@@ -28,10 +28,19 @@ noisy_channels(const char *fname, double max_noise = 1.e3 /* [Hz] */)
   
   std::ofstream fout;
   fout.open("noisy_channels.txt", std::ios::out);
+
+  // file to flag noisy channels
+  TH1D* hIndexNoiseFlag = new TH1D("hIndexNoiseFlag",";;channel index", 172800, 0., 172800.);
+  
+  // get previous noisy channel flags
+  auto fin_flag = TFile::Open("noisy_channels_flag.run-00.root");
+  TH1* hChannel_flag = (TH1 *)fin_flag->Get("hIndexNoiseFlag");
+  hChannel_flag->Draw(); 
   
   auto hIndexNoise = (TH1 *)hIndexCounter->Clone("hIndexNoise");
+  hIndexNoise->Reset();
   for (int i = 0; i < 172800; ++i) {
-    auto count = hIndexNoise->GetBinContent(i + 1);
+    auto count = hIndexCounter->GetBinContent(i + 1);
     auto counte = sqrt(count);
     auto icrate = i / 2400;
     auto iTRM   = i / 240;
@@ -39,16 +48,32 @@ noisy_channels(const char *fname, double max_noise = 1.e3 /* [Hz] */)
 
     if (itime < 1.e-6) continue;
     
+    //skip previously noisy channels
+    /*
+    if (hChannel_flag->GetBinContent(i+1) == 1)
+      {
+	std::cout << "--- skipping the channel -- " << i+1 << std::endl;
+	continue;
+	}*/
+    
     auto rate = (float)count / itime;
     auto ratee =  counte / itime ;
     hIndexNoise->SetBinContent(i + 1, rate);
     hIndexNoise->SetBinError(i + 1, ratee);
     if (rate < max_noise) continue;
     print_noisy_channel(i, fout);
+
+    hIndexNoiseFlag->SetBinContent(i + 1, 1);
   }
+
+  
 
   fout.close();
 
+  TFile fout_noiseflag("noisy_channels_flag.root", "RECREATE");
+  hIndexNoiseFlag->Write();
+  fout_noiseflag.Close();
+ 
   auto c = new TCanvas("c", "c", 800, 800);
   c->SetLogy();
   auto hframe = c->DrawFrame(0., 0.1, 172800., 100.e6, ";channel index;rate (Hz)");
@@ -60,5 +85,9 @@ noisy_channels(const char *fname, double max_noise = 1.e3 /* [Hz] */)
   TLine line;
   line.SetLineStyle(kDashed);
   line.DrawLine(0., 1.e3, 172800., 1.e3);
+
+  TFile fout_noisechannel("noisy_channels.root", "RECREATE");
+  hIndexNoise->Write();
+  fout_noisechannel.Close();
   
 }
