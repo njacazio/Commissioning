@@ -86,6 +86,7 @@ SclProxyTask::run(ProcessingContext& pc)
 
   /** no payload **/
   if (bufferPayload == 0) {
+    mStatus = true;
     return;
   }
 
@@ -111,51 +112,39 @@ SclProxyTask::run(ProcessingContext& pc)
   }
 
   /** loop over DRM data in the buffer **/
-  char *eob = mBuffer + bufferPayload;
+  //  char *eob = mBuffer + bufferPayload;
   char *pointer = mBuffer + 4;
-  while (pointer < eob) {
-    word = reinterpret_cast<uint32_t *>(pointer);
- 
-    // check TOF data header 
-    if (!(*word & 0x40000000)) {
-      printf(" --- this is not a TOF data header, give up the full buffer: 0x%08x (@0x%08x) \n", *word, (pointer - mBuffer));
-      return;
-    }
-    
-    auto tofDataHeader = reinterpret_cast<const o2::tof::raw::TOFDataHeader_t*>(pointer);
-    auto payload = tofDataHeader->bytePayload;
-    
-    // dump the data to screen
-    if (mDumpData) {
-      std::cout << " --- dump data: " << payload << " bytes" << std::endl;
-      for (int i = 0; i < payload / 4; ++i) {
-	word = reinterpret_cast<uint32_t *>(pointer);
-	printf("     0x%08x \n", *(word + i));
-      }
-      std::cout << " --- end of dump data " << std::endl;
-    }
+  auto payload = bufferPayload;
 
-    /** output **/
-    auto device = pc.services().get<o2::framework::RawDeviceService>().device();
-    auto outputRoutes = pc.services().get<o2::framework::RawDeviceService>().spec().outputs;
-    auto fairMQChannel = outputRoutes.at(0).channel;  
-    auto payloadMessage = device->NewMessage(payload);
-    std::memcpy(payloadMessage->GetData(), pointer, payload);
-    o2::header::DataHeader header("RAWDATA", "TOF", 0);
-    header.payloadSize = payload;
-    o2::framework::DataProcessingHeader dataProcessingHeader{0};
-    o2::header::Stack headerStack{header, dataProcessingHeader};
-    auto headerMessage = device->NewMessage(headerStack.size());
-    std::memcpy(headerMessage->GetData(), headerStack.data(), headerStack.size());
-    
-    /** send **/
-    FairMQParts parts;
-    parts.AddPart(std::move(headerMessage));
-    parts.AddPart(std::move(payloadMessage));
-    device->Send(parts, fairMQChannel);
-   
-    pointer += payload;
+  /** dump the data to screen **/
+  if (mDumpData) {
+    std::cout << " --- dump data: " << payload << " bytes" << std::endl;
+    for (int i = 0; i < payload / 4; ++i) {
+      word = reinterpret_cast<uint32_t *>(pointer);
+      printf("     0x%08x \n", *(word + i));
+    }
+    std::cout << " --- end of dump data " << std::endl;
   }
+
+  /** output **/
+  auto device = pc.services().get<o2::framework::RawDeviceService>().device();
+  auto outputRoutes = pc.services().get<o2::framework::RawDeviceService>().spec().outputs;
+  auto fairMQChannel = outputRoutes.at(0).channel;  
+  auto payloadMessage = device->NewMessage(payload);
+  std::memcpy(payloadMessage->GetData(), pointer, payload);
+  o2::header::DataHeader header("RAWDATA", "TOF", 0);
+  header.payloadSize = payload;
+  o2::framework::DataProcessingHeader dataProcessingHeader{0};
+  o2::header::Stack headerStack{header, dataProcessingHeader};
+  auto headerMessage = device->NewMessage(headerStack.size());
+  std::memcpy(headerMessage->GetData(), headerStack.data(), headerStack.size());
+  
+  /** send **/
+  FairMQParts parts;
+  parts.AddPart(std::move(headerMessage));
+  parts.AddPart(std::move(payloadMessage));
+  device->Send(parts, fairMQChannel);
+  
 };
 
 
