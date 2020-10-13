@@ -15,8 +15,8 @@ export OUTPUTTYPE="digits"
 # ctf not yet supported
 #export OUTPUTTYPE="digits,clusters,ctf"
 
-export MASKNOISE=""
-# export MASKNOISE="--mask-noise --noise-counts 5"
+export MASKNOISE="--row-filter"
+# export MASKNOISE="--mask-noise --noise-counts 5 --row-filter"
 
 atc-file-proxy -b --rate 100 \
 	       --atc-file-proxy-conet-mode \
