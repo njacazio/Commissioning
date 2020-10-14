@@ -1,5 +1,6 @@
 #include "TOFWorkflowUtils/CompressedAnalysis.h"
 #include <iostream>
+#include <fstream>
 
 #define colorReset "\033[0m"
 #define colorRed "\033[1;31m"
@@ -39,7 +40,7 @@ private:
 		      const Diagnostic_t* diagnostics,
                       const Error_t* errors) final;  
 
-  void printSummary();
+  void printSummary(std::ostream &fout);
   
   std::string mFileName = "noise_analysis.root";
   int mDiagnostics[72][12][32]; // [crate][slot][bit]
@@ -72,11 +73,17 @@ DiagnosticsAnalysis::finalize()
     h.Write();
   }
   fout.Close();
-  printSummary();
+  printSummary(std::cout);
+
+  std::ofstream ffout;
+  ffout.open("diagnostic_messages.txt", std::ios::out);
+  printSummary(ffout);
+  ffout.close();
+  
   return true;
 }
 
-void DiagnosticsAnalysis::printSummary()
+void DiagnosticsAnalysis::printSummary(std::ostream &fout)
 {
   for (int icrate = 0; icrate < 72; ++icrate) {
     // check we got events in this crate
@@ -98,12 +105,12 @@ void DiagnosticsAnalysis::printSummary()
 	else bitname = TRMDiagnosticName[ibit];
 	auto norm = (float)mDiagnostics[icrate][islot][0];
 	if (ibit == 0) norm = (float)mDiagnostics[icrate][0][0];
-	std::cout << color
-		  << " --- CRATE-" << setw(2) << setfill('0') << icrate << " SLOT-" << setw(2) << setfill('0') << islot + 1
-		  << ": " << bitname << " in " << mDiagnostics[icrate][islot][ibit] << " events ( "
-		  << 100. * (float)mDiagnostics[icrate][islot][ibit] / norm << " % )"
-		  << colorReset << std::endl;
-      
+	fout << color
+	     << "CRATE-" << setw(2) << setfill('0') << icrate << " SLOT-" << setw(2) << setfill('0') << islot + 1
+	     << ": " << bitname << " in " << mDiagnostics[icrate][islot][ibit] << " events ( "
+	     << 100. * (float)mDiagnostics[icrate][islot][ibit] / norm << " % )"
+	     << colorReset << std::endl;
+	
       }
     }
   }
