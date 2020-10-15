@@ -42,7 +42,7 @@ private:
 
   void printSummary(std::ostream &fout);
   
-  std::string mFileName = "noise_analysis.root";
+  std::string mFileName = "diagnostic_analysis.root";
   int mDiagnostics[72][12][32]; // [crate][slot][bit]
 
 };
@@ -76,7 +76,9 @@ DiagnosticAnalysis::finalize()
   printSummary(std::cout);
 
   std::ofstream ffout;
-  ffout.open("diagnostic_messages.txt", std::ios::out);
+  auto lastindex = mFileName.find_last_of("."); 
+  auto rawname = mFileName.substr(0, lastindex); 
+  ffout.open(std::string(rawname + ".diagnostic_messages.txt").c_str(), std::ios::out);
   printSummary(ffout);
   ffout.close();
   
