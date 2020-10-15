@@ -8,6 +8,8 @@ plateLines(Int_t flag = kTRM)
 {
   
   TLine l;
+  TLine l2;
+  l2.SetLineWidth(3);
 
   /* module lines */
   if (flag & kModule) {
@@ -30,7 +32,7 @@ plateLines(Int_t flag = kTRM)
     l.DrawLine(0, 0, 18, 0);
     l.DrawLine(0, 91, 18, 91);
     for (Int_t isec = 0; isec < 18; isec++) {
-      l.DrawLine(isec, 0, isec, 91);
+      l2.DrawLine(isec, 0, isec, 91);
       l.DrawLine(isec + 0.5, 0, isec + 0.5, 91);
       for (Int_t itrm = 0; itrm < 10; itrm++) {
 	l.DrawLine(isec, 1 + itrm * 5, isec + 0.5, 1 + itrm * 5);
