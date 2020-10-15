@@ -11,11 +11,11 @@
 using namespace o2::tof::compressed;
 using namespace o2::tof::diagnostic;
 
-class DiagnosticsAnalysis : public o2::tof::CompressedAnalysis
+class DiagnosticAnalysis : public o2::tof::CompressedAnalysis
 {
 public:
-  DiagnosticsAnalysis() = default;
-  ~DiagnosticsAnalysis() = default;
+  DiagnosticAnalysis() = default;
+  ~DiagnosticAnalysis() = default;
 
   bool initialize() final;
   bool finalize() final;
@@ -48,9 +48,9 @@ private:
 };
 
 bool
-DiagnosticsAnalysis::initialize()
+DiagnosticAnalysis::initialize()
 {
-  std::cout << "--- initialize DiagnosticsAnalysis" << std::endl;
+  std::cout << "--- initialize DiagnosticAnalysis" << std::endl;
   for (int icrate = 0; icrate < 72; ++icrate)
     for (int islot = 0; islot < 12; ++islot)
       for (int ibit = 0; ibit < 32; ++ibit)
@@ -59,9 +59,9 @@ DiagnosticsAnalysis::initialize()
 }
   
 bool
-DiagnosticsAnalysis::finalize()
+DiagnosticAnalysis::finalize()
 {
-  std::cout << "--- finalize DiagnosticsAnalysis" << std::endl;
+  std::cout << "--- finalize DiagnosticAnalysis" << std::endl;
   TFile fout(mFileName.c_str(), "RECREATE");
   for (int icrate = 0; icrate < 72; ++icrate) {
     TH2F h(Form("hDiagnostics_%02d", icrate), ";bit;slot", 32, 0., 32., 12, 1., 13.);
@@ -83,7 +83,7 @@ DiagnosticsAnalysis::finalize()
   return true;
 }
 
-void DiagnosticsAnalysis::printSummary(std::ostream &fout)
+void DiagnosticAnalysis::printSummary(std::ostream &fout)
 {
   for (int icrate = 0; icrate < 72; ++icrate) {
     // check we got events in this crate
@@ -117,7 +117,7 @@ void DiagnosticsAnalysis::printSummary(std::ostream &fout)
   
 }
 
-void DiagnosticsAnalysis::headerHandler(const CrateHeader_t* crateHeader,
+void DiagnosticAnalysis::headerHandler(const CrateHeader_t* crateHeader,
 					 const CrateOrbit_t* crateOrbit)
 {
   auto drmID = crateHeader->drmID;
@@ -128,13 +128,13 @@ void DiagnosticsAnalysis::headerHandler(const CrateHeader_t* crateHeader,
       mDiagnostics[drmID][ibit + 1][0]++;
 }
 
-void DiagnosticsAnalysis::frameHandler(const CrateHeader_t* crateHeader,
+void DiagnosticAnalysis::frameHandler(const CrateHeader_t* crateHeader,
 					const CrateOrbit_t* crateOrbit,
 					const FrameHeader_t* frameHeader,
 					const PackedHit_t* packedHits)
 {}
 
-void DiagnosticsAnalysis::trailerHandler(const CrateHeader_t* crateHeader,
+void DiagnosticAnalysis::trailerHandler(const CrateHeader_t* crateHeader,
 					  const CrateOrbit_t* crateOrbit,
 					  const CrateTrailer_t* crateTrailer,
 					  const Diagnostic_t* diagnostics,
@@ -154,7 +154,7 @@ void DiagnosticsAnalysis::trailerHandler(const CrateHeader_t* crateHeader,
 o2::tof::CompressedAnalysis*
 diagnostic_analysis(std::string fileName = "diagnostic_analysis.root")
 {
-  auto analysis = new DiagnosticsAnalysis;
+  auto analysis = new DiagnosticAnalysis;
   analysis->setFileName(fileName);
   return analysis;
 }
