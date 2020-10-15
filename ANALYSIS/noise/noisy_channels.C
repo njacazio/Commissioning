@@ -35,7 +35,7 @@ noisy_channels(const char *fname, double max_noise = 1.e3 /* [Hz] */)
   // get previous noisy channel flags
   auto fin_flag = TFile::Open("noisy_channels_flag.run-00.root");
   TH1* hChannel_flag = (TH1 *)fin_flag->Get("hIndexNoiseFlag");
-  hChannel_flag->Draw(); 
+
   
   auto hIndexNoise = (TH1 *)hIndexCounter->Clone("hIndexNoise");
   hIndexNoise->Reset();
@@ -49,13 +49,14 @@ noisy_channels(const char *fname, double max_noise = 1.e3 /* [Hz] */)
     if (itime < 1.e-6) continue;
     
     //skip previously noisy channels
-    /*
-    if (hChannel_flag->GetBinContent(i+1) == 1)
+    
+    /*  if (hChannel_flag->GetBinContent(i+1) == 1)
       {
 	std::cout << "--- skipping the channel -- " << i+1 << std::endl;
 	continue;
-	}*/
-    
+      }
+    */
+      
     auto rate = (float)count / itime;
     auto ratee =  counte / itime ;
     hIndexNoise->SetBinContent(i + 1, rate);

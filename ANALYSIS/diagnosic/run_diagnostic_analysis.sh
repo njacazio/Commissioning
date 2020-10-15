@@ -11,7 +11,7 @@ rm -rf $DIR/diagnostic_analysis.*.root
 rm -rf $DIR/*.log
 
 for CRATE in {00..71} ; do
-    FILENAME=$DIR/tofdata-$CRATE.0000.scl
+    FILENAME=$DIR/run-00.tofdata-$CRATE.0000.scl
     if [ -f "$FILENAME" ]; then
 	echo " --- running diagnostic_analysis: $FILENAME "
 	./diagnostic_analysis.sh $FILENAME $DIR/diagnostic_analysis.$CRATE.root > $DIR/diagnostic_analysis.$CRATE.log
