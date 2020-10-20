@@ -41,6 +41,7 @@ class SclProxyTask : public Task
   bool mQuitEOT = false;
   char* mBuffer = nullptr;
   const int mBufferSize = 33554432;
+  int mLinkRunning = 0;
 };
 
 void
@@ -103,14 +104,19 @@ SclProxyTask::run(ProcessingContext& pc)
 
   /** start of transmission **/
   if (tofbufCheckSOTEOT(reinterpret_cast<unsigned int *>(mBuffer)) == TOFBUF_SOT) {
-    std::cout << " --- start of transmission detected: let's rock" << std::endl;
+    std::cout << " --- start of transmission detected from link #" << link << ": let's rock" << std::endl;
+    mLinkRunning++;
     return;
   }
 
   /** end of transmission **/
   if (tofbufCheckSOTEOT(reinterpret_cast<unsigned int *>(mBuffer)) == TOFBUF_EOT) {
-    std::cout << " --- end of transmission detected: so long, and thanks for all the bytes" << std::endl;
-    if (mQuitEOT) mStatus = true;
+    std::cout << " --- end of transmission detected from link #" << link << std::endl;
+    mLinkRunning--;
+    if (mLinkRunning == 0 && mQuitEOT) {
+      std::cout << " --- end of transmission detected from all links: so long, and thanks for all the bytes" << std::endl;
+      mStatus = true;
+    }
     return;
   }
 
