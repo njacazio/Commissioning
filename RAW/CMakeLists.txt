@@ -3,6 +3,7 @@ target_link_libraries(atc-file-proxy
   PUBLIC
   PRIVATE
   FairMQ::FairMQ
+  AliceO2::FrameworkFoundation
   AliceO2::Framework
   ROOT::Core
   ms_gsl::ms_gsl
@@ -16,6 +17,7 @@ target_link_libraries(atc-writer-proxy
   PUBLIC
   PRIVATE
   FairMQ::FairMQ
+  AliceO2::FrameworkFoundation
   AliceO2::Framework
   AliceO2::Headers
   ROOT::Core
@@ -35,6 +37,7 @@ target_link_libraries(atc-scl-proxy
   PUBLIC
   PRIVATE
   FairMQ::FairMQ
+  AliceO2::FrameworkFoundation
   AliceO2::Framework
   ROOT::Core
   ms_gsl::ms_gsl

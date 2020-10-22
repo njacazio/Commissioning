@@ -3,6 +3,7 @@ target_link_libraries(atc-compressed-analysis
   PUBLIC
   PRIVATE
   FairMQ::FairMQ
+  AliceO2::FrameworkFoundation
   AliceO2::Framework
   AliceO2::Headers
   AliceO2::TOFReconstruction
