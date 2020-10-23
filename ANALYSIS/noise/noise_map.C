@@ -1,6 +1,7 @@
+TString outputdir = "/home/neelima/Desktop/commisionning/20201021_noise_scan/results/";
 
 TH1*
-noise_map(const char *fname, double max_noise = 1.e3 /* [Hz] */)
+noise_map(const char *fname, double max_noise = 1.e3 /* [Hz] */, int scan_number = 00)
 {
   auto fin           = TFile::Open(fname);
   auto hRuns         = (TH1 *)fin->Get("hRuns");
@@ -162,7 +163,14 @@ noise_map(const char *fname, double max_noise = 1.e3 /* [Hz] */)
   leg->SetBorderSize(0);
   leg->Draw("same");
 
-  TFile *fout = new TFile("noise_map.root", "RECREATE");
+  gROOT->ProcessLine(Form(".! mkdir -p %s", outputdir.Data()));
+  TString foutname = outputdir;
+  foutname += "noise_map.";
+  foutname += scan_number;
+  foutname += ".root";
+
+  //TFile *fout = new TFile("noise_map.root", "RECREATE");
+  TFile *fout = new TFile(foutname.Data(), "RECREATE");
   fout->cd();
   
   hStripNoise->Write();
