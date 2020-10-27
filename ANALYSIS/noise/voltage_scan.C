@@ -52,8 +52,8 @@ voltage_scan(int sector = 4, int strip = 44, int fea = 2)
     }
   } 
 
-  auto f2d = new TF2("f2d", "[0] + ([1] * x + [2] * x * x + [3] * y + [4] * y * y)");
-  //  auto f2d = new TF2("f2d", "[0] + [1] * (x - 13000.) + [2] * (x - 13000.) * (x - 13000.) + [3] * (y - 500.) + [4] * (y - 500.) * (y - 500.)");
+  //  auto f2d = new TF2("f2d", "[0] + ([1] * x + [2] * x * x + [3] * y + [4] * y * y)");
+  auto f2d = new TF2("f2d", "[0] + [1] * (x - 13000.) + [2] * (x - 13000.) * (x - 13000.) + [3] * (y - 500.) + [4] * (y - 500.) * (y - 500.)");
   f2d->SetParameter(0, 0.5);
   if (normaliseTo != -1) f2d->SetParameter(0, 1.);
   f2d->FixParameter(2, 0.);
@@ -67,7 +67,7 @@ voltage_scan(int sector = 4, int strip = 44, int fea = 2)
   // auto f1d = new TF1("f1d", "[0] + ([1] * [5] + [2] * [5] * [5] + [3] * x + [4] * x * x)", 400., 1100.);
   auto f1d = new TF1("f1d", "[0] + [1] * ([5] - 13000.) + [2] * ([5] - 13000.) * ([5] - 13000.) + [3] * (x - 500.) + [4] * (x - 500.) * (x - 500.)", 400., 1100.);
   f1d->SetLineStyle(kDashed);
-  for (int i = 1; i < 5; ++i)
+  for (int i = 0; i < 5; ++i)
     f1d->SetParameter(i, f2d->GetParameter(i));
   
   auto c = new TCanvas("c", "c", 800, 800);
@@ -89,6 +89,12 @@ voltage_scan(int sector = 4, int strip = 44, int fea = 2)
   }
   
   leg->Draw("same");
+
+  gROOT->ProcessLine(Form(".! mkdir -p %s", outputdir.Data()));
+  if (normaliseTo == -1)
+    { c->SaveAs(Form("%s/Sector%d_Strip%d_Fea%d_normalisation1.png",outputdir.Data(), sector, strip, fea));}
+  else
+    c->SaveAs(Form("%s/Sector%d_Strip%d_Fea%d_normalisation%d.png",outputdir.Data(), sector, strip, fea, normaliseTo));
   new TCanvas;
   fea_Noise_2D->Draw("surf");
   
