@@ -11,7 +11,7 @@ PROXY_SPEC="x:TOF/RAWDATA"
 COMPR_CONF="x:TOF/RAWDATA"
 
 VERBOSE=""
-VERBOSE="--tof-compressor-verbose --tof-compressor-decoder-verbose"
+#VERBOSE="--tof-compressor-verbose --tof-compressor-decoder-verbose"
 
 o2-dpl-raw-proxy -b --session default \
     --dataspec "$PROXY_SPEC" \
@@ -20,6 +20,9 @@ o2-dpl-raw-proxy -b --session default \
     --tof-compressor-rdh-version 6 \
     --tof-compressor-config "$COMPR_CONF" \
     $VERBOSE \
-    | o2-dpl-output-proxy -b --session default \
-    --dataspec "downstream:TOF/CRAWDATA" \
-    --channel-config "name=downstream,type=push,method=bind,address=ipc:///tmp/stf-pipe-0,rateLogging=1,transport=shmem"
+    | o2-tof-reco-workflow -b --session default \
+    --input-type raw \
+    --output-type digits \
+    | o2-tof-compressed-inspector -b --session default \
+    --tof-compressed-inspector-rdh-version 6 \
+    --tof-compressed-inspector-filename inspector.root
