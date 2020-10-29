@@ -10,8 +10,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-find_package(ms_gsl)
-find_package(arrow)
+find_package(fmt REQUIRED)
+find_package(ms_gsl REQUIRED)
+find_package(O2arrow REQUIRED)
 find_package(Threads REQUIRED)
 find_package(FairMQ 1.4 REQUIRED)
 find_package(FairLogger ${FairMQ_FairLogger_VERSION} REQUIRED)
@@ -25,3 +26,4 @@ find_package(tofbuf)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${Boost_INCLUDE_DIR})
 
 add_subdirectory(RAW)
+add_subdirectory(ANALYSIS)

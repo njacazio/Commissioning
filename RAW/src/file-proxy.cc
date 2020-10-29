@@ -41,13 +41,14 @@ class FileProxyTask : public Task
   int mRDHversion = 4;
   bool mDumpData = false;
   std::ifstream mFile;
-  char mBuffer[1048576];
+  char mBuffer[4194304];
 };
 
 void
 FileProxyTask::init(InitContext& ic)
 {
   auto infilename = ic.options().get<std::string>("atc-file-proxy-input-filename");
+  auto startfrom = ic.options().get<int>("atc-file-proxy-start-from");
   mCONET = ic.options().get<bool>("atc-file-proxy-conet-mode");
   mDumpData = ic.options().get<bool>("atc-file-proxy-dump-data");
   mRDHversion = ic.options().get<int>("atc-file-proxy-rdh-version");
@@ -59,7 +60,9 @@ FileProxyTask::init(InitContext& ic)
     std::cout << " --- File is not open " << std::endl;
     mStatus = true;
   }
-
+  std::cout << " --- Start reading from byte offset: " << startfrom << std::endl;
+  mFile.seekg(startfrom, std::ios::beg);
+  
   if (mCONET) {
     std::cout << " --- CONET mode " << std::endl; 
   }
@@ -134,34 +137,25 @@ long
 FileProxyTask::readCONET()
 {
 
-  char *pointer = mBuffer;
-  const uint32_t *word;
-
-  /** read TOF data header **/
-  if (!mFile.read(pointer, 4)) {
+  uint32_t word;
+  auto current = mFile.tellg();
+  
+  /** read size of tof buffer **/
+  if (!mFile.read((char *)&word, 4)) {
     std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
     mStatus = true;
     return 0;      
   }
-  word = reinterpret_cast<const uint32_t *>(pointer);
-  if (*word == 0x00080000) {
-    printf(" --- unrecognised word: %08x \n ", *word);
-    if (!mFile.read(pointer, 4)) {
-      std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
-      mStatus = true;
-      return 0;      
-    }
-  }
-  auto tofDataHeader = reinterpret_cast<const o2::tof::raw::TOFDataHeader_t*>(pointer);
-  auto bytePayload = tofDataHeader->bytePayload;
+  auto bytePayload = word * 4;
+  printf(" --- tofBuffer: %08x (%d bytes) at %d \n", word, bytePayload, current);
 
   /** read payload **/
-  if (!mFile.read(pointer + 4, bytePayload)) {
+  if (!mFile.read(mBuffer, bytePayload)) {
     std::cout << " --- Cannot read input file: " << strerror(errno) << std::endl;
     mStatus = true;
     return 0;      
   }
-  return bytePayload + 4;
+  return bytePayload;
 }
 
 void
@@ -180,8 +174,11 @@ FileProxyTask::run(ProcessingContext& pc)
   int payload = 0;
   if (mCONET) payload = readCONET();
   else payload = readFLP();
-  if (payload == 0) return;
-
+  if (payload == 0) {
+    mStatus = true;
+    return;
+  }
+    
   if (mDumpData) {
     std::cout << " --- dump data: " << payload << " bytes" << std::endl;
     uint32_t *word = reinterpret_cast<uint32_t *>(mBuffer);
@@ -237,6 +234,7 @@ WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
 	AlgorithmSpec(adaptFromTask<FileProxyTask>()),
 	Options{
 	  {"atc-file-proxy-input-filename", VariantType::String, "", {"Input file name"}},
+	  {"atc-file-proxy-start-from", VariantType::Int, 0, {"Start reading from byte"}},
 	  {"atc-file-proxy-dump-data", VariantType::Bool, false, {"Dump data"}},
 	  {"atc-file-proxy-rdh-version", VariantType::Int, 4, {"RDH version"}},
 	  {"atc-file-proxy-conet-mode", VariantType::Bool, false, {"CONET mode"}}}
