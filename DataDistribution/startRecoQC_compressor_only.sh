@@ -31,8 +31,5 @@ o2-dpl-raw-proxy ${COMMONOPT} \
     --channel-config "name=readout-proxy,type=pull,method=connect,address=ipc:///tmp/stf-builder-dpl-pipe-0,transport=shmem,rateLogging=1" \
     | o2-tof-compressor ${COMMONOPT} --tof-compressor-rdh-version 6 --tof-compressor-config "$COMPR_CONF" $VERBOSE \
     | o2-tof-reco-workflow ${COMMONOPT} ${RECOWFLOWOPT} \
-    | o2-tof-digit-writer-workflow ${COMMONOPT} ${DIGIWRITEOPT} \
-    | o2-qc ${COMMONOPT} --config json://${QCJSON}
-
-#    | o2-tof-compressed-inspector ${COMMONOPT} --tof-compressed-inspector-rdh-version 6 --tof-compressed-inspector-filename inspector.root
+    | o2-tof-digit-writer-workflow ${COMMONOPT} ${DIGIWRITEOPT}
 
