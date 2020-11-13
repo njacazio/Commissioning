@@ -1,5 +1,6 @@
 // Requirement: o2sim_geometry.root
 // run macro in compiled mode: root -b -q -l coinc.C+
+// This macro produces a tree with several information
 
 #include "TH1F.h"
 #include "TH2F.h"
@@ -10,44 +11,15 @@
 #include "TOFBase/Geo.h"
 
 int maxdiginrow = 10000000; 
+float timerange = 40000E3;
 
 bool isNoise(int ch){
-  if(ch == 31443) return 1;
-  if(ch == 34482) return 1;
-  if(ch == 34483) return 1;
-  if(ch == 125331) return 1;
-  if(ch == 125518) return 1;
-  if(ch == 125675) return 1;
-  if(ch == 125808) return 1;
-  if(ch == 128753) return 1;
-  if(ch == 128800) return 1;
-
-  if(ch == 123744) return 1;
-  if(ch == 123745) return 1;
-  if(ch == 124821) return 1;
-  if(ch == 125089) return 1;
-  if(ch == 125317) return 1;
-  if(ch == 125318) return 1;
-  if(ch == 125325) return 1;
-  if(ch == 125326) return 1;
-  if(ch == 125329) return 1;
-  if(ch == 125332) return 1;
-  if(ch == 125371) return 1;
-  if(ch == 125372) return 1;
-  if(ch == 125473) return 1;
-  if(ch == 125517) return 1;
-  if(ch == 125578) return 1;
-  if(ch == 125673) return 1;
-  if(ch == 125674) return 1;
-  if(ch == 125727) return 1;
-  if(ch == 125809) return 1;
-  if(ch == 127510) return 1;
-  if(ch == 128798) return 1;
+//  if(ch == 31443) return 1; // example how to mask a channel
 
   return 0;
 }
 
-void coinc(const char *namef = "tofdigits.root"){
+void coinc(const char *namef = "tofdigits_0.root"){
    TFile *f = new TFile(namef);
    TTree *t = (TTree *) f->Get("o2sim");
    
@@ -68,11 +40,12 @@ void coinc(const char *namef = "tofdigits.root"){
 
    int64_t bcdelta;
    uint64_t bc1,bc2;
-   int tdc1,tdc2,ch1,ch2,det1[5],det2[5],ech1,ech2,cr1,cr2,itemp;
+   int tdc1,tdc2,ch1,ch2,det1[5],det2[5],ech1,ech2,cr1,cr2,itemp,trm1,trm2,chain1,chain2,etdc1,etdc2,fea1,fea2;
    double dtime;
+   float tot1,tot2;
    float pos1[3],pos2[3],v,dist,delay1,delay2,ftemp;
 
-   TFile *fo = new TFile("output.root","RECREATE");
+   TFile *fo = new TFile(Form("out_%s",namef),"RECREATE");
    TTree *to = new TTree("tree","tree");
    to->Branch("ch1",&ch1,"ch1/I");
    to->Branch("ch2",&ch2,"ch2/I");
@@ -82,6 +55,18 @@ void coinc(const char *namef = "tofdigits.root"){
    to->Branch("l",&dist,"l/F");
    to->Branch("cr1",&cr1,"cr1/I");
    to->Branch("cr2",&cr2,"cr2/I");
+   to->Branch("fea1",&fea1,"fea1/I");
+   to->Branch("fea2",&fea2,"fea2/I");
+   to->Branch("trm1",&trm1,"trm1/I");
+   to->Branch("trm2",&trm2,"trm2/I");
+   to->Branch("chain1",&chain1,"chain1/I");
+   to->Branch("chain2",&chain2,"chain2/I");
+   to->Branch("etdc1",&etdc1,"etdc1/I");
+   to->Branch("etdc2",&etdc2,"etdc2/I");
+   to->Branch("tot1",&tot1,"tot1/F");
+   to->Branch("tot2",&tot2,"tot2/F");
+   to->Branch("delay1",&delay1,"delay1/F");
+   to->Branch("delay2",&delay2,"delay2/F");
 
    for(int i=0; i < t->GetEntries(); i++){
      t->GetEvent(i);
@@ -103,14 +88,21 @@ void coinc(const char *namef = "tofdigits.root"){
          auto dig1c = digRow[k1];
          bc1 = dig1c.getBC();
          tdc1 = dig1c.getTDC();
+         tot1= dig1c.getTOT()*48.8;
          ch1 = dig1c.getChannel();
 
          if(isNoise(ch1)) continue;
 
          hNoise->Fill(ch1);
 
-         // Det IDs (sector, module, strip, padx, padz)
+         // Det IDs (sector, module, strip, padz, padx)
          o2::tof::Geo::getVolumeIndices(ch1, det1);
+         fea1 = det1[4]/12 + det1[2]*4;
+         if(det1[1] == 1) fea1 += 19*4;
+         if(det1[1] == 2) fea1 += (19+19)*4;
+         if(det1[1] == 3) fea1 += (19+19+15)*4;
+         if(det1[1] == 4) fea1 += (19+19+15+19)*4;
+         fea1 = fea1 % 185;
 
          // channel pos (o2sim_geometry.root needed!)
          o2::tof::Geo::getPos(det1, pos1);
@@ -119,24 +111,37 @@ void coinc(const char *namef = "tofdigits.root"){
          ech1 = o2::tof::Geo::getECHFromCH(ch1);
 
          // delay due to cable length
-         delay1 = o2::tof::Geo::getCableTimeShift(o2::tof::Geo::getCrateFromECH(ech1), o2::tof::Geo::getTRMFromECH(ech1), o2::tof::Geo::getChainFromECH(ech1), o2::tof::Geo::getTDCFromECH(ech1));
+         delay1 = o2::tof::Geo::getCableTimeShift(o2::tof::Geo::getCrateFromECH(ech1), o2::tof::Geo::getTRMFromECH(ech1), o2::tof::Geo::getChainFromECH(ech1), o2::tof::Geo::getTDCFromECH(ech1))*1E3;
 
          cr1 = o2::tof::Geo::getCrateFromECH(ech1);
-
+         trm1 = o2::tof::Geo::getTRMFromECH(ech1);
+         chain1 = o2::tof::Geo::getChainFromECH(ech1);
+         etdc1 = o2::tof::Geo::getChainFromECH(ech1);
          // loop over digits to look for coincs
          for(int k2=k1+1; k2 < digRow.size(); k2++){
             auto dig2c = digRow[k2];
             bc2 = dig2c.getBC();
             tdc2 = dig2c.getTDC();
+            tot2= dig2c.getTOT()*48.8;
             ch2 = dig2c.getChannel(); 
             o2::tof::Geo::getVolumeIndices(ch2, det2);
+            fea2 = det2[4]/12 + det2[2]*4;
+            if(det2[1] == 1) fea2 += 19*4;
+            if(det2[1] == 2) fea2 += (19+19)*4;
+            if(det2[1] == 3) fea2 += (19+19+15)*4;
+            if(det2[1] == 4) fea2 += (19+19+15+19)*4;
+            fea2 = fea2 % 185;
+
             o2::tof::Geo::getPos(det2, pos2);
             ech2 = o2::tof::Geo::getECHFromCH(ch2);
-            delay2 = o2::tof::Geo::getCableTimeShift(o2::tof::Geo::getCrateFromECH(ech2), o2::tof::Geo::getTRMFromECH(ech2), o2::tof::Geo::getChainFromECH(ech2), o2::tof::Geo::getTDCFromECH(ech2));
+            delay2 = o2::tof::Geo::getCableTimeShift(o2::tof::Geo::getCrateFromECH(ech2), o2::tof::Geo::getTRMFromECH(ech2), o2::tof::Geo::getChainFromECH(ech2), o2::tof::Geo::getTDCFromECH(ech2))*1E3;
 
             if(isNoise(ch2)) continue;
 
             cr2 = o2::tof::Geo::getCrateFromECH(ech2);
+            trm2 = o2::tof::Geo::getTRMFromECH(ech2);
+            chain2 = o2::tof::Geo::getChainFromECH(ech2);
+            etdc2 = o2::tof::Geo::getChainFromECH(ech2);
 
             if(pos1[1] < pos2[1]) v = 2.9979246e-2;
             else v = -2.9979246e-2;
@@ -152,11 +157,11 @@ void coinc(const char *namef = "tofdigits.root"){
             dist += (pos1[2]-pos2[2])*(pos1[2]-pos2[2]);
             dist = sqrt(dist);
 
-            dtime -= delay1 - delay2;
+	    // do not apply correction for cable lenght if you plan to apply calibration later
+	    // dtime -= delay1 - delay2;
 
-            if(TMath::Abs(dtime) < 20000E3) {
-
-              if(cr2 < cr1){ // invert
+            if(TMath::Abs(dtime) < timerange) {
+              if(cr2 < cr1){ // ordered by crate ID
                  ftemp = pos1[0];
                  pos1[0] = pos2[0];
                  pos2[0] = ftemp;
@@ -178,7 +183,31 @@ void coinc(const char *namef = "tofdigits.root"){
                  itemp = cr1;
                  cr1 = cr2;
                  cr2 = itemp;
-              }
+
+                 ftemp = tot1;
+                 tot1 = tot2;
+                 tot2 = ftemp;
+
+		 itemp = trm1;
+		 trm1 = trm2;
+		 trm2 = itemp;
+
+		 itemp = fea1;
+		 fea1 = fea2;
+		 fea2 = itemp;
+
+		 itemp = chain1;
+		 chain1 = chain2;
+		 chain2 = itemp;
+
+		 ftemp = delay1;
+		 delay1 = delay2;
+		 delay2 = ftemp;
+
+		 itemp = etdc1;
+		 etdc1 = etdc2;
+		 etdc2 = itemp;
+	      }
 
               hDeltaT->Fill(dtime);
               hDeltaT2->Fill(dist,dtime);
@@ -204,7 +233,7 @@ void coinc(const char *namef = "tofdigits.root"){
    hDeltaT2->Draw("colz");
 
    for(int i=1; i < 1600000;i++){
-      if(hNoise->GetBinContent(i) > 100) printf("  if(ch == %d) return 1;\n",i-1);
+      if(hNoise->GetBinContent(i) > 1000) printf("  if(ch == %d) return 1;\n",i-1);
    }
 
    fo->cd();
