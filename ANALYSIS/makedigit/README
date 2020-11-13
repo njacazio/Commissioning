@@ -1,0 +1,35 @@
+1) coinc.C+
+macro to prepare a tree with coincidences (TOF muon standalone analysis) --> out_digits##.root
+it has to be run in compliation mode (+)
+
+2) DoMerge.C
+macro to merge output from serveral digits --> output.root
+
+3) calib.C
+macro to process (output 2) and produce some histos + a tree after some calibrations applied --> calib.root
+it applies timeslewing (file to be downloaded from alien, see in the macro)
+it reads TRM calibration from calib.txt if available
+it produces newcal.txt with info to extract new calibration for TRM (see also 4)
+
+4) align.C
+it updates TRM offset calibration with the info provided in newcal.txt
+it has to be run in iterative mode with calib.C
+root -b -q -l calib.C
+root -b -q -l align.C\(0\) // align only TOP sectors
+root -b -q -l calib.C
+root -b -q -l align.C\(1\) // align only BOTTOM sectors
+root -b -q -l calib.C
+... continue till you are happy, check calib.root
+root -b -q -l align.C\(0\) // align only TOP sectors
+root -b -q -l calib.C
+root -b -q -l align.C\(1\) // align only BOTTOM sectors
+...
+
+5) fitFEA.C
+Use TTree in calib.root to extract extra correction at FEA level (again iterative procedure)
+Let's reming to uncoment related lines in calib.C
+root -b -q -l calib.C
+root fitFEA.C
+root -b -q -l calib.C
+...
+
