@@ -25,4 +25,6 @@ o2-dpl-raw-proxy -b --session default \
     $VERBOSE \
     | o2-dpl-output-proxy -b --session default \
     --dataspec "A:TOF/CRAWDATA;dd:FLP/DISTSUBTIMEFRAME/0" \
-    --dpl-output-proxy '--channel-config "name=downstream,type=push,method=bind,address=ipc:///tmp/stf-pipe-0,rateLogging=1,transport=shmem"'
+    --dpl-output-proxy '--channel-config "name=downstream,type=push,method=bind,address=ipc:///tmp/stf-pipe-0,rateLogging=1,transport=shmem"' \
+    --run
+
