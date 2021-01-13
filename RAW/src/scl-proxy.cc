@@ -15,6 +15,8 @@
 #include "Headers/RAWDataHeader.h"
 #include "DataFormatsTOF/RawDataFormat.h"
 
+#include <iostream>
+
 extern "C" {
 #include "tofbuf.h"
 };

@@ -15,6 +15,8 @@
 #include "Headers/RAWDataHeader.h"
 #include "DataFormatsTOF/RawDataFormat.h"
 
+#include <iostream>
+
 using namespace o2::framework;
 
 class FileProxyTask : public Task

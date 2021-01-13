@@ -10,6 +10,8 @@
 #include "Framework/ConcreteDataMatcher.h"
 #include <fairmq/FairMQDevice.h>
 
+#include <iostream>
+
 using namespace o2::framework;
 
 class WriterProxyTask : public Task
