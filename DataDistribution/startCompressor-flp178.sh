@@ -12,12 +12,20 @@ for iSector in $SECTORS; do
 	crateId=$((10#$iSector * 4 + 10#$iCrate))
 #	feeId=$((1280 + 10#$crateId))
 	feeId=$((10#$crateId))
+
+	if [ $feeId -eq "29" ]; then
+	    continue;
+	fi
+	if [ $feeId -eq "32" ]; then
+	    continue;
+	fi
+
 	desc="x$feeId:TOF/RAWDATA/$feeId"
 	PROXY_SPEC+="$desc;"
-	COMPR_CONF+="$desc,"
+	COMPR_CONF+="$desc;"
     done
-#    COMPR_CONF=${COMPR_CONF:0:-1}
-#    COMPR_CONF+=","
+    COMPR_CONF=${COMPR_CONF:0:-1}
+    COMPR_CONF+=","
 done
 COMPR_CONF=${COMPR_CONF:0:-1}
 PROXY_SPEC+="dd:FLP/DISTSUBTIMEFRAME/0"
@@ -46,10 +54,10 @@ o2-dpl-raw-proxy -b --session default \
     $VERBOSE \
     | o2-qc -b --config json://${QUALITYCONTROL_ROOT}/etc/tofraw.json --session default \
     | o2-tof-reco-workflow -b --input-type raw --disable-mc --output-type digits --session default --disable-root-output \
-    | o2-tof-digit-writer-workflow -b --ntf 10 --session default \
+    | o2-tof-digit-writer-workflow -b --ntf 1 --session default \
+    | o2-dpl-output-proxy -b --session default \
+    --dataspec "A:TOF/CRAWDATA;dd:FLP/DISTSUBTIMEFRAME/0" \
+    --dpl-output-proxy '--channel-config "name=downstream,type=push,method=bind,address=ipc:///tmp/stf-pipe-0,rateLogging=1,transport=shmem"' \
     --run
-#    | o2-dpl-output-proxy -b --session default \
-#    --dataspec "A:TOF/CRAWDATA;dd:FLP/DISTSUBTIMEFRAME/0" \
-#    --dpl-output-proxy '--channel-config "name=downstream,type=push,method=bind,address=ipc:///tmp/stf-pipe-0,rateLogging=1,transport=shmem"' \
-#    --run
+
 
