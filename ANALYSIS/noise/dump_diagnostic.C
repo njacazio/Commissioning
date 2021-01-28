@@ -10,6 +10,7 @@ dump_diagnostic(const char *fnamein)
   size_t lastindex = fnameout.find_last_of("."); 
   fnameout = fnameout.substr(0, lastindex) + ".diagnostic"; 
   fout.open(fnameout.c_str(), std::ios::out);
+  fout << std::fixed << std::setprecision(3);
   fout << "# drm \t slot \t frac. \t what" << std::endl;
 
   // loop over crates
@@ -30,9 +31,9 @@ dump_diagnostic(const char *fnamein)
 	if (nbit <= 0) continue; // no occurrence in this bit
 	float freq = nbit / ndata;
 
-	if (islot == 1)      fout << std::setprecision(3) << icrate <<  "\t" << islot << "\t" << freq << "\t" << o2::tof::diagnostic::DRMDiagnosticName[ibit] << std::endl;
-	else if (islot == 2) fout << std::setprecision(3) << icrate <<  "\t" << islot << "\t" << freq << "\t" << o2::tof::diagnostic::LTMDiagnosticName[ibit] << std::endl;
-	else           	     fout << std::setprecision(3) << icrate <<  "\t" << islot << "\t" << freq << "\t" << o2::tof::diagnostic::TRMDiagnosticName[ibit] << std::endl;
+	if (islot == 1)      fout << icrate <<  "\t" << islot << "\t" << freq << "\t" << o2::tof::diagnostic::DRMDiagnosticName[ibit] << std::endl;
+	else if (islot == 2) fout << icrate <<  "\t" << islot << "\t" << freq << "\t" << o2::tof::diagnostic::LTMDiagnosticName[ibit] << std::endl;
+	else           	     fout << icrate <<  "\t" << islot << "\t" << freq << "\t" << o2::tof::diagnostic::TRMDiagnosticName[ibit] << std::endl;
 	
       }
     }
