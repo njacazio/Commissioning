@@ -1,0 +1,7 @@
+#!/bin/bash
+root -b -q -l fitstrip.C+ 
+root -b -q -l fitstrip.C+\(1\)
+root -b -q -l fitglobal.C
+root -b -q -l fitglobal.C\(1,5\)
+root -b -q -l fitglobal.C\(1,10\)
+
