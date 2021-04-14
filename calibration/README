@@ -1,7 +1,18 @@
 #!/bin/bash
+#scp -i ~/.ssh/id_rsa_eee2 131.154.97.51:/nfshome/data/epn/*/tofclusCalInfo_1*_*.root . ;ls tofclusCalInfo_1*_*.root >lista;root -b -q -l DoMerge.C
 root -b -q -l fitstrip.C+ 
 root -b -q -l fitstrip.C+\(1\)
-root -b -q -l fitglobal.C
-root -b -q -l fitglobal.C\(1,5\)
-root -b -q -l fitglobal.C\(1,10\)
+root -b -q -l checkall.C+
+root -b -q -l fitglobal.C+
+root -b -q -l fitglobal.C+\(1,5\)
+root -b -q -l fitglobal.C+\(1,10\)
+root -b -q -l fitglobal.C+\(1,25\)
+root -b -q -l fitglobal.C+\(1,50\)
+root -b -q -l fitglobal.C+\(1,100\)
+root -b -q -l fitglobal.C+\(1,100\)
+root -b -q -l fitglobal.C+\(1,100\)
+root -b -q -l fitglobal.C+\(1,100\)
+root -b -q -l fitglobal.C+\(1,100\)
+
+root -b -q -l checkglobal.C
 
