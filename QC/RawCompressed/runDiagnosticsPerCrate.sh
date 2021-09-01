@@ -2,7 +2,7 @@
 
 reset
 
-o2-qc-run-postprocessing -b --config json://${QUALITYCONTROL_ROOT}/etc/tofpostprocessdiagnosticpercrate.json --name PostProcessDiagnosticPerCrate
+o2-qc-run-postprocessing --config json://${QUALITYCONTROL_ROOT}/etc/tofpostprocessdiagnosticpercrate.json --name PostProcessDiagnosticPerCrate
 
 rm localhost*
 
