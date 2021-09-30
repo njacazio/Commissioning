@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
 import argparse
-from ROOT import TFile, gPad
+from ROOT import TFile, gPad, TPaveText
 import os
 
 
@@ -15,14 +15,14 @@ def convert_timestamp(ts):
     return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def get_ccdb_obj(ccdb_path, timestamp, out_path, show, verbose):
+def get_ccdb_obj(ccdb_path, timestamp, out_path, host, show, verbose):
     """
     Gets the ccdb object from 'ccdb_path' and 'timestamp' and downloads it into 'out_path'
     """
     if verbose:
         print("Getting obj", ccdb_path, "with timestamp",
               timestamp, convert_timestamp(timestamp))
-    cmd = f"o2-ccdb-downloadccdbfile --path {ccdb_path} --dest {out_path} --timestamp {timestamp}"
+    cmd = f"o2-ccdb-downloadccdbfile --host {host} --path {ccdb_path} --dest {out_path} --timestamp {timestamp}"
     subprocess.run(cmd.split())
     if verbose:
         f = TFile(os.path.join(out_path, ccdb_path, "snapshot.root"), "READ")
@@ -38,12 +38,17 @@ def get_ccdb_obj(ccdb_path, timestamp, out_path, show, verbose):
         if show:
             obj = f.Get("ccdb_object")
             obj.Draw()
+            time_box = TPaveText(.01, .9, 0.3, 0.99, "NDC")
+            time_box.AddText(ccdb_path)
+            time_box.AddText(f"timestamp {timestamp}")
+            time_box.AddText(f"{convert_timestamp(timestamp)}")
+            time_box.Draw()
             gPad.Update()
             input("Press enter to continue")
             # obj.Print("ALL")
 
 
-def main(ccdb_path, timestamp, out_path, show, verbose):
+def main(ccdb_path, timestamp, out_path, host, show, verbose):
     if os.path.isfile(ccdb_path):
         with open(ccdb_path) as f:
             for i in f:
@@ -54,23 +59,25 @@ def main(ccdb_path, timestamp, out_path, show, verbose):
                              out_path=out_path,
                              timestamp=timestamp,
                              show=show,
+                             host=host,
                              verbose=verbose)
     else:
         get_ccdb_obj(ccdb_path=ccdb_path,
                      out_path=out_path,
                      timestamp=timestamp,
                      show=show,
+                     host=host,
                      verbose=verbose)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Fetch data from CCDB"
-        "Basic example: `./fetch_output.py qc/TOF/TOFTaskCompressed/hDiagnostic`")
+        "Basic example: `./fetch_output.py qc/TOF/MO/TaskRaw/hDiagnostic`")
     parser.add_argument('ccdb_path',
                         metavar='path_to_object',
                         type=str,
-                        help='Path of the object in the CCDB repository. If a file is passed the all the file input is downloaded')
+                        help='Path of the object in the CCDB repository. If a `.txt` file is passed the all the file input is downloaded')
     parser.add_argument('--timestamp', "-t",
                         metavar='object_timestamp',
                         type=int,
@@ -80,6 +87,10 @@ if __name__ == "__main__":
                         default="/tmp/",
                         type=str,
                         help='Output path on your local machine')
+    parser.add_argument('--ccdb_host', "-H",
+                        default="qcdb.cern.ch:8083",
+                        type=str,
+                        help='Host to use for the CCDB fetch')
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--show', '-s', action='store_true')
 
@@ -88,4 +99,5 @@ if __name__ == "__main__":
          out_path=args.out_path,
          timestamp=args.timestamp,
          show=args.show,
+         host=args.ccdb_host,
          verbose=args.verbose)
