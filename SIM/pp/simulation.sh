@@ -11,4 +11,4 @@ DIR=$(dirname "${BASH_SOURCE[0]}")
 
 echo " --- running simulation: ${NEVENTS} events "
 
-o2-sim -n ${NEVENTS} -g pythia8 -m TOF
+o2-sim -n ${NEVENTS} -g pythia8pp -e TGeant3 -m TOF 

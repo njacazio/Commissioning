@@ -8,3 +8,5 @@ DIR=$(dirname "${BASH_SOURCE[0]}")
 echo " --- running digitization: ${RATE} Hz "
 
 o2-sim-digitizer-workflow --disable-mc -b --run --interactionRate ${RATE}
+
+o2-tof-reco-workflow -b --output-type raw
