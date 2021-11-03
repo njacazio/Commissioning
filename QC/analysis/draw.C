@@ -99,6 +99,7 @@ void draw(TString run = "505285"){
         h[i]->Draw("colz HIST");
         label-> DrawLatex(0.27, 0.8, Form("Run %s", run.Data()));     
         csingle[i]->SaveAs(Form("Run%s/%s.png",run.Data(),name[i].Data()));
+        csingle[i]->SaveAs(Form("Run%s/%s.root",run.Data(),name[i].Data()));
     }
 }
 
