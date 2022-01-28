@@ -32,6 +32,7 @@ def get_ccdb_obj(ccdb_path, timestamp, out_path, host, show, verbose,
     fullname = os.path.join(out_path, ccdb_path, out_name)
     if os.path.isfile(fullname) and not overwrite_preexisting:
         msg("File", fullname, "already existing, not overwriting")
+        return
     if use_o2_api:
         api = get_ccdb_api(host)
         if timestamp == -1:
@@ -40,9 +41,10 @@ def get_ccdb_obj(ccdb_path, timestamp, out_path, host, show, verbose,
         api.retrieveBlob(ccdb_path,
                          out_path,
                          metadata,
-                         timestamp,
-                         True,
-                         out_name)
+                         timestamp)
+        os.rename(os.path.join(out_path,
+                               ccdb_path,
+                               "snapshot.root"), fullname)
 
     else:
         cmd = f"o2-ccdb-downloadccdbfile --host {host} --path {ccdb_path} --dest {out_path} --timestamp {timestamp}"

@@ -4,7 +4,7 @@
 Script to list the timestamps on objects on the CCDB
 """
 
-from common import run_cmd, verbose_msg, set_verbose_mode, msg, get_default_parser, get_ccdb_api
+from common import run_cmd, verbose_msg, set_verbose_mode, msg, get_default_parser, get_ccdb_api, warning_msg
 from fetch_output import convert_timestamp, get_ccdb_obj
 import os
 from ROOT import TFile, TGraph, o2
@@ -35,14 +35,17 @@ def save_fields(input_line,
 
 def useapi(ccdb_path, host):
     global timestamps
-    objectlist = get_ccdb_api().list(ccdb_path,
-                                     False,
-                                     "text/plain")
+    objectlist = get_ccdb_api(host).list(ccdb_path,
+                                         False,
+                                         "text/plain")
     bunch_objects = []
     starting_sequence = "ID: "
     for i in objectlist.split("\n"):
         if starting_sequence in i:
             bunch_objects.append("")
+        if len(bunch_objects) <= 0:
+            warning_msg("Skipping", i, "because found no object there")
+            continue
         bunch_objects[-1] += f"{i}\n"
     verbose_msg("Found", len(bunch_objects), "object in path", ccdb_path)
     for counter, i in enumerate(bunch_objects):
@@ -193,11 +196,16 @@ def main(paths_to_check,
         iterative_search()
     else:  # Use the CCDB API
         for i in paths_to_check:
-            if "." in i:
+            i = i.strip()
+            if i == "":
+                continue
+            if "." in i:  # It's a file!
                 verbose_msg("Using", i, "as input file")
                 with open(i, "r") as f:
                     for j in f:
                         j = j.strip()
+                        if i == "":
+                            continue
                         useapi(ccdb_path=j,
                                host=host)
             else:
@@ -219,7 +227,7 @@ if __name__ == "__main__":
                         help="Input paths to check e.g. `qc/TOF/MO/TaskCosmics/CosmicRate/`. Multiple arguments are accepted, files with paths per line in input are also accepted")
     parser.add_argument("--host", type=str,
                         default="http://ccdb-test.cern.ch:8080",
-                        help="Address of the ccdb host")
+                        help="Address of the ccdb host e.g. http://ccdb-test.cern.ch:8080 or http://qcdb.cern.ch:8083")
     parser.add_argument("--output", "-o", type=str,
                         default="/tmp/",
                         help="Path where to store the CCDB objects to download")
