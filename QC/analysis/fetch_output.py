@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
 from ROOT import TFile, gPad, TPaveText, o2, std
-from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_ccdb_api
+from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_ccdb_api, warning_msg
 import os
 
 
@@ -15,15 +15,29 @@ def convert_timestamp(ts):
     return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def get_ccdb_obj(ccdb_path, timestamp, out_path, host, show, verbose,
+def get_ccdb_obj(ccdb_path,
+                 timestamp,
+                 out_path,
+                 host,
+                 show,
+                 verbose,
                  tag=False,
                  overwrite_preexisting=True,
-                 use_o2_api=True):
+                 use_o2_api=True,
+                 check_metadata=True,
+                 interesting_metadata=["ObjectType",
+                                       "PassName",
+                                       "PeriodName",
+                                       "RunNumber",
+                                       "Transfer-Encoding",
+                                       "Valid-From",
+                                       "Valid-Until",
+                                       ""]):
     """
     Gets the ccdb object from 'ccdb_path' and 'timestamp' and downloads it into 'out_path'
     If 'tag' is True then the filename will be renamed after the timestamp.
     """
-    verbose_msg("Getting obj", ccdb_path, "with timestamp",
+    verbose_msg("Getting obj", host, ccdb_path, "with timestamp",
                 timestamp, convert_timestamp(timestamp))
     out_name = "snapshot.root"
     if tag:
@@ -42,23 +56,29 @@ def get_ccdb_obj(ccdb_path, timestamp, out_path, host, show, verbose,
                          out_path,
                          metadata,
                          timestamp)
-        os.rename(os.path.join(out_path,
-                               ccdb_path,
-                               "snapshot.root"), fullname)
-
+        if tag:
+            os.rename(os.path.join(out_path, ccdb_path,
+                                   "snapshot.root"), fullname)
     else:
         cmd = f"o2-ccdb-downloadccdbfile --host {host} --path {ccdb_path} --dest {out_path} --timestamp {timestamp}"
         cmd += f" -o {out_name}"
+        print(cmd)
         subprocess.run(cmd.split())
     if not os.path.isfile(fullname):
         raise ValueError("File", fullname, "not found")
-    if verbose:
+    if check_metadata:
         f = TFile(os.path.join(fullname), "READ")
         meta = f.Get("ccdb_meta")
-        if False:
-            print("Metadata")
-            for i in meta:
-                print(i)
+        verbose_msg("Metadata")
+        m_d = {"Valid-From": None, "Valid-Until": None}
+        for i in meta:
+            if i[0] in m_d:
+                m_d[i[0]] = int(i[1])
+            if interesting_metadata[0] != "" and i[0] not in interesting_metadata:
+                continue
+            verbose_msg(i)
+        if timestamp < m_d["Valid-From"] or timestamp > m_d["Valid-Until"]:
+            warning_msg("Timestamp asked is outside of window", timestamp, m_d)
 
         def print_info(entry):
             print("Object", entry, meta[entry])
@@ -76,7 +96,15 @@ def get_ccdb_obj(ccdb_path, timestamp, out_path, host, show, verbose,
             # obj.Print("ALL")
 
 
-def main(ccdb_path, timestamp, out_path, host, show, verbose):
+def main(ccdb_path,
+         timestamp,
+         out_path,
+         host,
+         show,
+         tag,
+         verbose):
+
+    # The input file is a list of objects
     if os.path.isfile(ccdb_path):
         with open(ccdb_path) as f:
             for i in f:
@@ -86,6 +114,7 @@ def main(ccdb_path, timestamp, out_path, host, show, verbose):
                 get_ccdb_obj(ccdb_path=i,
                              out_path=out_path,
                              timestamp=timestamp,
+                             tag=tag,
                              show=show,
                              host=host,
                              verbose=verbose)
@@ -93,6 +122,7 @@ def main(ccdb_path, timestamp, out_path, host, show, verbose):
         get_ccdb_obj(ccdb_path=ccdb_path,
                      out_path=out_path,
                      timestamp=timestamp,
+                     tag=tag,
                      show=show,
                      host=host,
                      verbose=verbose)
@@ -108,7 +138,8 @@ if __name__ == "__main__":
     parser.add_argument('--timestamp', "-t",
                         metavar='object_timestamp',
                         type=int,
-                        default=-1,
+                        default=[-1],
+                        nargs="+",
                         help='Timestamp of the object to fetch, by default -1 (latest)')
     parser.add_argument('--out_path', "-o",
                         default="/tmp/",
@@ -117,15 +148,18 @@ if __name__ == "__main__":
     parser.add_argument('--ccdb_host', "-H",
                         default="qcdb.cern.ch:8083",
                         type=str,
-                        help='Host to use for the CCDB fetch')
+                        help='Host to use for the CCDB fetch e.g. qcdb.cern.ch:8083')
+    parser.add_argument('--tag', '-T', action='store_true')
     parser.add_argument('--show', '-s', action='store_true')
 
     args = parser.parse_args()
     set_verbose_mode(args)
 
-    main(ccdb_path=args.ccdb_path,
-         out_path=args.out_path,
-         timestamp=args.timestamp,
-         show=args.show,
-         host=args.ccdb_host,
-         verbose=args.verbose)
+    for i in args.timestamp:
+        main(ccdb_path=args.ccdb_path,
+             out_path=args.out_path,
+             timestamp=i,
+             show=args.show,
+             tag=args.tag,
+             host=args.ccdb_host,
+             verbose=args.verbose)
