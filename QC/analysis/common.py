@@ -18,6 +18,8 @@ def get_ccdb_api(host):
     if ccdb_api[1] != host:
         ccdb_api[1] = host
         ccdb_api[0].init(host)
+    if not ccdb_api[0].checkAlienToken():
+        fatal_msg("AlienToken not available, call `alien.py`")
     return ccdb_api[0]
 
 def set_verbose_mode(parser, force=False):

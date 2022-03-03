@@ -7,7 +7,7 @@ Script to list the timestamps on objects on the CCDB
 from common import run_cmd, verbose_msg, set_verbose_mode, msg, get_default_parser, get_ccdb_api, warning_msg
 from fetch_output import convert_timestamp, get_ccdb_obj
 import os
-from ROOT import TFile, TGraph, o2
+from ROOT import TFile, TGraph
 
 
 timestamps = {}
@@ -183,6 +183,8 @@ def download_objects(input_file="t.root",
                          tag=True,
                          overwrite_preexisting=overwrite)
     f.Close()
+    for i in obj_downloaded:
+        msg("Downloaded", obj_downloaded[i], i)
 
 
 def main(paths_to_check,
@@ -225,7 +227,7 @@ if __name__ == "__main__":
                         default=["qc/TOF/MO/TaskCosmics/CosmicRate/",
                                  "qc/TOF/MO/TaskCosmics/Crate1/"],
                         help="Input paths to check e.g. `qc/TOF/MO/TaskCosmics/CosmicRate/`. Multiple arguments are accepted, files with paths per line in input are also accepted")
-    parser.add_argument("--host", type=str,
+    parser.add_argument("--host", "-H", type=str,
                         default="http://ccdb-test.cern.ch:8080",
                         help="Address of the ccdb host e.g. http://ccdb-test.cern.ch:8080 or http://qcdb.cern.ch:8083")
     parser.add_argument("--output", "-o", type=str,
@@ -238,6 +240,7 @@ if __name__ == "__main__":
     set_verbose_mode(args)
 
     if args.download:
+        get_ccdb_api(host=args.host)
         download_objects(out_path=args.output)
     else:
         main(args.input,
