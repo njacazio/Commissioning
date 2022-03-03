@@ -1,0 +1,116 @@
+\documentclass[svgnames,dvipsnames,aspectratio=169]{beamer}
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage[absolute,overlay]{textpos}
+\usepackage{xcolor,pgf,colortbl}
+\usepackage{appendixnumberbeamer}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc}
+\usetikzlibrary{arrows,shapes}
+\usepackage[percent]{overpic}
+\usepackage{color}
+\usepackage{transparent}
+\usepackage{graphicx} % Allows including images
+\usepackage{etoolbox}
+\usepackage{forloop}
+\usepackage{calc}
+\usepackage{algorithmic}
+\usepackage{tabularx}
+\usepackage{pgffor}
+\usepackage{xspace}
+\usepackage{xstring}
+\usepackage{grffile}
+
+\DeclareGraphicsExtensions{%
+  .pdf,.PDF,%
+  .png,.PNG,%
+  .jpg,.mps,.jpeg,.jbig2,.jb2,.JPG,.JPEG,.JBIG2,.JB2}
+
+\renewcommand*\sfdefault{ugq}
+
+\mode<presentation> {
+  \usetheme{Boadilla}
+  \usecolortheme{default}
+  \setbeamertemplate{navigation symbols}{} % To remove the navigation symbols from the bottom of all slides uncomment this line
+}
+
+
+
+\definecolor{Gray}{gray}{0.85}
+\newcolumntype{a}{>{\columncolor{Gray}}c}
+
+% % % % % % % % % % % % % % % % % % % % %
+% Document wide variables and definitions
+\input{./utils/commands.tex}
+% % % % % % % % % % % % % % % % % % % % %
+
+
+
+%----------------------------------------------------------------------------------------
+% TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\makeatletter
+\setbeamertemplate{title page}
+{
+  \vbox{}
+  \vfill
+  \begin{centering}
+    \setbeamercolor{title}{bg=white,fg=structure}
+    \setbeamercolor{author}{bg=white,fg=structure}
+    \vbox to 1.\textheight{
+      \vfill
+      \centering
+      \hspace*{-.4cm}
+      \resizebox{\paperwidth}{!}{
+        {\transparent{.6}%
+            \begin{beamercolorbox}[sep=8pt]{title}
+              \transparent{1.}%
+              \usebeamerfont{title}\inserttitle
+              \vskip.5cm\par
+              \usebeamerfont{author}\insertauthor
+              \vskip.2cm\par
+              \begin{columns}
+                \column{.7\textwidth}
+                \usebeamerfont{institute}\insertinstitute
+                %\vskip.5cm\par
+                %\hfill
+                %\par
+                \column{.1\textwidth}
+                \column{.1\textwidth}
+                {\usebeamercolor[fg]{titlegraphic}\inserttitlegraphic\par}
+              \end{columns}
+              \ifx\insertsubtitle\@empty%
+              \else%
+                \vskip0.25em%
+                {\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\insertsubtitle\par}%
+              \fi%
+              \hfill\hfill
+              %\vskip1em\par
+              \vskip-.2cm\par
+              %\usebeamerfont{date}\insertdate
+              \vskip-.2cm\par
+            \end{beamercolorbox}
+          }
+      }
+      \hfill
+    }
+  \end{centering}
+  \vfill
+}
+
+
+\begin{document}
+
+\input{rendered/title.tex}
+\input{rendered/beta.tex}
+\input{rendered/efficiency.tex}
+
+\end{document}
