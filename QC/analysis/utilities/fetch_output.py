@@ -113,17 +113,20 @@ def get_ccdb_obj(ccdb_path,
             gPad.Update()
             input("Press enter to continue")
             # obj.Print("ALL")
+    return fullname
 
 
 def main(ccdb_path,
-         timestamp,
-         out_path,
-         host,
-         show,
-         tag):
+         timestamp=-1,
+         out_path="/tmp/",
+         host="qcdb.cern.ch:8083",
+         show=False,
+         preserve_ccdb_structure=True,
+         tag=None):
     if type(timestamp) is not int:
         timestamp = convert_timestamp(timestamp)
 
+    downloaded = []
     # The input file is a list of objects
     if os.path.isfile(ccdb_path):
         with open(ccdb_path) as f:
@@ -131,19 +134,28 @@ def main(ccdb_path,
                 i = i.strip()
                 if i == "":
                     continue
-                get_ccdb_obj(ccdb_path=i,
-                             out_path=out_path,
-                             timestamp=timestamp,
-                             tag=tag,
-                             show=show,
-                             host=host)
+                obj = get_ccdb_obj(ccdb_path=i,
+                                   out_path=out_path,
+                                   timestamp=timestamp,
+                                   tag=tag,
+                                   show=show,
+                                   host=host)
+                downloaded.append(obj)
     else:
-        get_ccdb_obj(ccdb_path=ccdb_path,
-                     out_path=out_path,
-                     timestamp=timestamp,
-                     tag=tag,
-                     show=show,
-                     host=host)
+        obj = get_ccdb_obj(ccdb_path=ccdb_path,
+                           out_path=out_path,
+                           timestamp=timestamp,
+                           tag=tag,
+                           show=show,
+                           host=host)
+        downloaded.append(obj)
+    if not preserve_ccdb_structure:
+        print("Printing")
+        for i in downloaded:
+            j = i.split("/")[-2]
+            j = os.path.join(out_path, f"{j}.root")
+            print(i,"->", j)
+            os.rename(i, j)
 
 
 if __name__ == "__main__":
