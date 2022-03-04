@@ -10,3 +10,5 @@ dpl-config.json
 *.pdf
 *.snm
 *.toc
+__pycache__
+.ipynb_checkpoints
