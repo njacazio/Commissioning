@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import argparse
 import fetch_output
 import os
-from ROOT import TFile, gPad, TPaveText, gROOT
+from ROOT import gROOT
 import os
 
 gROOT.LoadMacro("draw.C")

@@ -2,7 +2,7 @@
 
 
 from shutil import ExecError
-from utilities.plotting import draw_nice_canvas, remove_canvas, save_all_canvases
+from utilities.plotting import draw_nice_canvas, draw_nice_frame, remove_canvas, save_all_canvases, reset_canvases, set_nice_frame
 from common import warning_msg, get_default_parser, set_verbose_mode, verbose_msg
 from ROOT import TFile, TH1, TLatex
 from os import path
@@ -31,9 +31,10 @@ object_drawn = {}
 
 def draw(filename,
          out_path="/tmp/",
-         extension="png",
+         extensions=["png", "root"],
          configuration=None,
          save=False):
+    reset_canvases()
     filename = path.normpath(filename)
     f_tag = filename.split("/")[-2]
     verbose_msg("Processing", filename, f"'{f_tag}'")
@@ -98,21 +99,36 @@ def draw(filename,
         set_if_not_empty("xrange", "GetXaxis().SetRangeUser")
         set_if_not_empty("yrange", "GetYaxis().SetRangeUser")
         postprocess = get_option("postprocess")
-    h.Draw(drawopt)
+    if "TEfficiency" in h.ClassName():
+        x = h.GetTotalHistogram().GetXaxis()
+        x = [x.GetBinLowEdge(1), x.GetBinUpEdge(x.GetNbins())]
+        y = [0, 1.2]
+        if h.GetDimension() == 2:
+            y = h.GetTotalHistogram().GetYaxis()
+            y = [y.GetBinLowEdge(1), y.GetBinUpEdge(y.GetNbins())]
+        draw_nice_frame(can, x, y, h, h)
+        h.Draw(drawopt+"same")
+    else:
+        set_nice_frame(h)
+        h.Draw(drawopt)
     if postprocess != "":
         postprocess = postprocess.replace(".py", "")
-        p = f"from postprocessing import {postprocess}"
-        exec(p)
-        p = f"{postprocess}.main(h)"
-        exec(p)
+        try:
+            p = f"from postprocessing import {postprocess}"
+            exec(p)
+            p = f"{postprocess}.main(h)"
+            exec(p)
+        except:
+            warning_msg("Could not run", postprocess, "for", f_tag)
     if show_title:
         draw_label(h.GetTitle())
     if "TEfficiency" in h.ClassName():
         h.SetTitle("")
     can.Update()
     if save:
-        saveas = path.join(out_path, f"{f_tag}.{extension}")
-        can.SaveAs(saveas)
+        for i in extensions:
+            saveas = path.join(out_path, f"{f_tag}.{i}")
+            can.SaveAs(saveas)
     if f_tag in object_drawn:
         warning_msg("Replacing", f_tag)
     object_drawn[f_tag] = h
@@ -125,7 +141,8 @@ def main(tag="qc",
          filename="snapshot.root",
          config_file="drawconfig.conf",
          wait=False,
-         refresh=False):
+         refresh=False,
+         save=False):
     config_parser = configparser.RawConfigParser()
     config_parser.read(config_file)
     p = path.join(main_path, tag)
@@ -143,14 +160,16 @@ def main(tag="qc",
                 process = True
         if not process:
             continue
-        r = draw(fn, configuration=config_parser)
+        r = draw(fn, configuration=config_parser, save=save,
+                 out_path=path.join(main_path, tag))
         if wait:
             input(
                 f"'{r[1].GetName()}' {r[1].ClassName()} press enter to continue")
         if refresh:
             remove_canvas(r[0])
             del r
-    save_all_canvases("/tmp/plots.pdf")
+    if save:
+        save_all_canvases("/tmp/plots.pdf")
     return config_parser
 
 
@@ -163,6 +182,15 @@ if __name__ == "__main__":
                         default=None,
                         nargs="+",
                         help='Names of the objects to draw exclusively')
+    parser.add_argument('--intag', "-t",
+                        type=str,
+                        default="qc",
+                        # nargs="+",
+                        help='Tag for the input')
+    parser.add_argument('--mainpath', "-M",
+                        type=str,
+                        default="/tmp/",
+                        help='Main path where to take input and post output')
     parser.add_argument('--config', "-c",
                         type=str,
                         default="drawconfig.conf",
@@ -176,13 +204,19 @@ if __name__ == "__main__":
     parser.add_argument('--refresh', "-r",
                         action="store_true",
                         help='Option to delete each canvas after drawing it')
+    parser.add_argument('--save', "-S",
+                        action="store_true",
+                        help='Option save images')
 
     args = parser.parse_args()
     set_verbose_mode(args)
 
     r = main(draw_only=args.only,
+             tag=args.intag,
+             main_path=args.mainpath,
              wait=args.wait,
-             refresh=args.refresh)
+             refresh=args.refresh,
+             save=args.save)
     if 1:
         l = []
         for i in object_drawn:

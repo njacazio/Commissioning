@@ -42,6 +42,12 @@ def remove_canvas(n):
         n = n.GetName()
     nice_canvases[n] = None
 
+
+def reset_canvases():
+    for i in nice_canvases:
+        remove_canvas(i)
+
+
 def save_all_canvases(n):
     dn = list(nice_canvases.keys())
     dn = [dn[0], dn[-1]]
@@ -55,9 +61,16 @@ def save_all_canvases(n):
         if i == dn[1]:
             c.SaveAs(f"{n}]")
 
-
-def drawn_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True):
-    return draw_nice_canvas(name, x=x, y=y, logx=logx, logy=logy, logz=logz)
+def set_nice_frame(h):
+    if "TEff" in h.ClassName():
+        gPad.GetListOfPrimitives().ls()
+        # h = gPad.GetListOfPrimitives().At(0)
+        set_nice_frame(h.GetTotalHistogram())
+        set_nice_frame(h.GetPassedHistogram())
+        return
+    h.GetYaxis().SetTitleSize(0.04)
+    h.GetXaxis().SetTitleSize(0.04)
+    h.GetXaxis().SetTitleOffset(1.25)
 
 
 nice_frames = {}
@@ -67,13 +80,15 @@ def draw_nice_frame(c, x, y, xt, yt):
     c.cd()
     global nice_frames
     if not type(xt) is str:
+        if "TEff" in xt.ClassName():
+            xt = xt.GetTotalHistogram()
         xt = xt.GetXaxis().GetTitle()
     if not type(yt) is str:
+        if "TEff" in yt.ClassName():
+            yt = yt.GetTotalHistogram()
         yt = yt.GetYaxis().GetTitle()
     frame = c.DrawFrame(x[0], y[0], x[1], y[1], f";{xt};{yt}")
-    frame.GetYaxis().SetTitleSize(0.04)
-    frame.GetXaxis().SetTitleSize(0.04)
-    frame.GetXaxis().SetTitleOffset(1.25)
+    set_nice_frame(frame)
     frame.SetDirectory(0)
     nice_frames[c.GetName()] = frame
     return frame
