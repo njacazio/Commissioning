@@ -11,6 +11,7 @@ from ROOT import o2
 verbose_mode = False
 ccdb_api = None
 
+
 def get_ccdb_api(host):
     global ccdb_api
     if ccdb_api is None:
@@ -18,9 +19,13 @@ def get_ccdb_api(host):
     if ccdb_api[1] != host:
         ccdb_api[1] = host
         ccdb_api[0].init(host)
-    if not ccdb_api[0].checkAlienToken():
-        fatal_msg("AlienToken not available, call `alien.py`")
+    try:
+        if not ccdb_api[0].checkAlienToken():
+            fatal_msg("AlienToken not available, call `alien.py`")
+    except:
+        warning_msg("Cannot test if alien token is available")
     return ccdb_api[0]
+
 
 def set_verbose_mode(parser, force=False):
     global verbose_mode

@@ -7,13 +7,26 @@ from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_c
 import os
 
 
-def convert_timestamp(ts):
+def convert_timestamp(ts, make_timestamp=False):
     """
     Converts the timestamp in milliseconds in human readable format or vice versa if passing a string
     """
-    if type(ts) is str:
+
+    def is_number():
+        try:
+            int(ts)
+            return True
+        except ValueError:
+            pass
+        return False
+
+    if not is_number():
         return int(datetime.strptime(ts, "%d/%m/%Y, %H:%M:%S").timestamp()*1000)
-    return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d %H:%M:%S')
+    if type(ts) is str:
+        ts = int(ts)
+        if make_timestamp:
+            return ts
+    return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d, %H:%M:%S')
 
 
 def get_ccdb_obj(ccdb_path,
@@ -33,9 +46,13 @@ def get_ccdb_obj(ccdb_path,
                                        "Valid-Until",
                                        ""]):
     """
-    Gets the ccdb object from 'ccdb_path' and 'timestamp' and downloads it into 'out_path'
+    Gets the ccdb object from 'ccdb_path' and 'timestamp' and downloads it into 'out_path'.
+    If `out_path` is a file name and not a path, then the output file will be renamed to the requested name.
     If 'tag' is True then the filename will be renamed after the timestamp.
     """
+    if type(timestamp) is not int:
+        raise ValueError("timestamp must be an integer", type(timestamp))
+
     def check_rootfile(fname):
         try:
             f = TFile(fname, "READ")
@@ -53,10 +70,15 @@ def get_ccdb_obj(ccdb_path,
     verbose_msg("Getting obj", host, ccdb_path, "with timestamp",
                 timestamp, convert_timestamp(timestamp))
     out_name = "snapshot.root"
-    if tag:
-        out_name = f"snapshot_{timestamp}.root"
     out_path = os.path.normpath(out_path)
     fullname = os.path.join(out_path, ccdb_path, out_name)
+    if "." in os.path.split(out_path)[-1]:
+        fullname = out_path
+        out_name = os.path.split(out_path)[-1]
+        out_path = os.path.split(out_path)[0]
+    if tag:
+        out_name = os.path.splitext(out_name)
+        out_name = f"{out_name[0]}_{timestamp}{out_name[1]}"
     if os.path.isfile(fullname) and not overwrite_preexisting:
         if check_rootfile(fullname):
             msg("File", fullname, "already existing, not overwriting")
@@ -64,6 +86,7 @@ def get_ccdb_obj(ccdb_path,
     if use_o2_api:
         api = get_ccdb_api(host)
         if timestamp == -1:
+            verbose_msg("Getting current timestamp")
             timestamp = o2.ccdb.getCurrentTimestamp()
         metadata = std.map('string,string')()
         api.retrieveBlob(ccdb_path,
@@ -76,7 +99,7 @@ def get_ccdb_obj(ccdb_path,
     else:
         cmd = f"o2-ccdb-downloadccdbfile --host {host} --path {ccdb_path} --dest {out_path} --timestamp {timestamp}"
         cmd += f" -o {out_name}"
-        print(cmd)
+        verbose_msg("Using o2 executable", cmd)
         subprocess.run(cmd.split())
     if not os.path.isfile(fullname):
         raise ValueError("File", fullname, "not found")
@@ -93,7 +116,8 @@ def get_ccdb_obj(ccdb_path,
             if interesting_metadata[0] != "" and i[0] not in interesting_metadata:
                 continue
             if i[0] in m_d:
-                verbose_msg(i, convert_timestamp(int(i[1])))
+                verbose_msg(i, convert_timestamp(int(i[1])),
+                            "delta =", int(i[1]) - timestamp)
             else:
                 verbose_msg(i)
         if timestamp < m_d["Valid-From"] or timestamp > m_d["Valid-Until"]:
@@ -121,11 +145,8 @@ def main(ccdb_path,
          out_path="/tmp/",
          host="qcdb.cern.ch:8083",
          show=False,
-         preserve_ccdb_structure=True,
          tag=None):
-    if type(timestamp) is not int:
-        timestamp = convert_timestamp(timestamp)
-
+    timestamp = convert_timestamp(timestamp, make_timestamp=True)
     downloaded = []
     # The input file is a list of objects
     if os.path.isfile(ccdb_path):
@@ -134,6 +155,10 @@ def main(ccdb_path,
                 i = i.strip()
                 if i == "":
                     continue
+                if "#" in i:
+                    continue
+                if "%" in i:
+                    break
                 obj = get_ccdb_obj(ccdb_path=i,
                                    out_path=out_path,
                                    timestamp=timestamp,
@@ -149,13 +174,6 @@ def main(ccdb_path,
                            show=show,
                            host=host)
         downloaded.append(obj)
-    if not preserve_ccdb_structure:
-        print("Printing")
-        for i in downloaded:
-            j = i.split("/")[-2]
-            j = os.path.join(out_path, f"{j}.root")
-            print(i,"->", j)
-            os.rename(i, j)
 
 
 if __name__ == "__main__":
@@ -178,7 +196,7 @@ if __name__ == "__main__":
     parser.add_argument('--ccdb_host', "-H",
                         default="qcdb.cern.ch:8083",
                         type=str,
-                        help='Host to use for the CCDB fetch e.g. qcdb.cern.ch:8083')
+                        help='Host to use for the CCDB fetch e.g. qcdb.cern.ch:8083 or http://ccdb-test.cern.ch:8080')
     parser.add_argument('--tag', '-T', action='store_true')
     parser.add_argument('--show', '-s', action='store_true')
 
@@ -186,8 +204,6 @@ if __name__ == "__main__":
     set_verbose_mode(args)
 
     for i in args.timestamp:
-        if i.isdecimal():
-            i = int(i)
         main(ccdb_path=args.ccdb_path,
              out_path=args.out_path,
              timestamp=i,

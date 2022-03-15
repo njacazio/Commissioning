@@ -4,7 +4,7 @@ if [[ -n "${1}" ]]; then
     echo "Downloading SWAN resources"
     wget https://raw.githubusercontent.com/alicetof/Commissioning/master/QC/analysis/notebooks/draw.ipynb
     wget https://raw.githubusercontent.com/alicetof/Commissioning/master/QC/analysis/common.py
-    wget https://raw.githubusercontent.com/alicetof/Commissioning/master/QC/analysis/plotting.py
+    wget https://raw.githubusercontent.com/alicetof/Commissioning/master/QC/analysis/utilities/plotting.py
     wget https://raw.githubusercontent.com/alicetof/Commissioning/master/QC/analysis/utilities/fetch_output.py
     return
 fi
