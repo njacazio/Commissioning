@@ -44,8 +44,6 @@ def get_ccdb_obj(ccdb_path,
             return False
         return True
 
-    verbose_msg("Getting obj", host, ccdb_path, "with timestamp",
-                timestamp, convert_timestamp(timestamp))
     out_name = "snapshot.root"
     out_path = os.path.normpath(out_path)
     fullname = os.path.join(out_path, ccdb_path, out_name)
@@ -56,6 +54,8 @@ def get_ccdb_obj(ccdb_path,
     if tag:
         out_name = os.path.splitext(out_name)
         out_name = f"{out_name[0]}_{timestamp}{out_name[1]}"
+    verbose_msg("Getting obj", ccdb_path, "with timestamp",
+                timestamp, convert_timestamp(timestamp), "from host", host, "to", fullname)
     if os.path.isfile(fullname) and not overwrite_preexisting:
         if check_rootfile(fullname):
             msg("File", fullname, "already existing, not overwriting")
@@ -79,9 +79,9 @@ def get_ccdb_obj(ccdb_path,
         verbose_msg("Using o2 executable", cmd)
         subprocess.run(cmd.split())
     if not os.path.isfile(fullname):
-        raise ValueError("File", fullname, "not found")
+        raise ValueError("Download target file", fullname, "not found")
     if not check_rootfile(fullname):
-        raise ValueError("File", fullname, "is not Ok")
+        raise ValueError("Download target file", fullname, "is not Ok")
     if check_metadata:
         f = TFile(os.path.join(fullname), "READ")
         meta = f.Get("ccdb_meta")
@@ -186,8 +186,8 @@ if __name__ == "__main__":
         if len(ccdb_path) != 2:
             raise ValueError("cannot deduce host and path from",
                              args.ccdb_path, "does it have the '/browse/' string?")
-        ccdb_host = ccdb_path[1]
-        ccdb_path = ccdb_path[0]
+        ccdb_host = ccdb_path[0]
+        ccdb_path = ccdb_path[1]
         msg("Overriding host to", ccdb_host)
 
     for i in args.timestamp:
