@@ -1,32 +1,9 @@
 #!/usr/bin/env python3
 
 import subprocess
-from datetime import datetime
 from ROOT import TFile, gPad, TPaveText, o2, std
-from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_ccdb_api, warning_msg
+from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_ccdb_api, warning_msg, convert_timestamp
 import os
-
-
-def convert_timestamp(ts, make_timestamp=False):
-    """
-    Converts the timestamp in milliseconds in human readable format or vice versa if passing a string
-    """
-
-    def is_number():
-        try:
-            int(ts)
-            return True
-        except ValueError:
-            pass
-        return False
-
-    if not is_number():
-        return int(datetime.strptime(ts, "%d/%m/%Y, %H:%M:%S").timestamp()*1000)
-    if type(ts) is str:
-        ts = int(ts)
-        if make_timestamp:
-            return ts
-    return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d, %H:%M:%S')
 
 
 def get_ccdb_obj(ccdb_path,
@@ -182,7 +159,7 @@ if __name__ == "__main__":
     parser.add_argument('ccdb_path',
                         metavar='path_to_object',
                         type=str,
-                        help='Path of the object in the CCDB repository. If a `.txt` file is passed the all the file input is downloaded')
+                        help='Path of the object in the CCDB repository. If a `.txt` file is passed the all the file input is downloaded. Can also be an address e.g. if http://qcdb.cern.ch:8083/browse/qc/TOF/MO/TaskDigits/TOFRawsMulti the host is taken from there')
     parser.add_argument('--timestamp', "-t",
                         metavar='object_timestamp',
                         type=str,
@@ -202,11 +179,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     set_verbose_mode(args)
+    ccdb_path = args.ccdb_path
+    ccdb_host = args.ccdb_host
+    if "http://" in ccdb_path:
+        ccdb_path = ccdb_path.split("/browse/")
+        if len(ccdb_path) != 2:
+            raise ValueError("cannot deduce host and path from",
+                             args.ccdb_path, "does it have the '/browse/' string?")
+        ccdb_host = ccdb_path[1]
+        ccdb_path = ccdb_path[0]
+        msg("Overriding host to", ccdb_host)
 
     for i in args.timestamp:
-        main(ccdb_path=args.ccdb_path,
+        main(ccdb_path=ccdb_path,
              out_path=args.out_path,
              timestamp=i,
              show=args.show,
              tag=args.tag,
-             host=args.ccdb_host)
+             host=ccdb_host)

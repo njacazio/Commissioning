@@ -2,7 +2,7 @@
 import argparse
 import multiprocessing
 import time
-import datetime
+from datetime import datetime
 import os
 from ROOT import o2
 
@@ -10,6 +10,28 @@ from ROOT import o2
 # Global running flags
 verbose_mode = False
 ccdb_api = None
+
+
+def convert_timestamp(ts, make_timestamp=False):
+    """
+    Converts the timestamp in milliseconds in human readable format or vice versa if passing a string
+    """
+
+    def is_number():
+        try:
+            int(ts)
+            return True
+        except ValueError:
+            pass
+        return False
+
+    if not is_number():
+        return int(datetime.strptime(ts, "%d/%m/%Y, %H:%M:%S").timestamp()*1000)
+    if type(ts) is str:
+        ts = int(ts)
+        if make_timestamp:
+            return ts
+    return datetime.utcfromtimestamp(ts/1000).strftime('%Y-%m-%d, %H:%M:%S')
 
 
 def get_ccdb_api(host):
@@ -115,7 +137,7 @@ def run_cmd(cmd, comment="", check_status=True, log_file=None, print_output=Fals
                     msg(i)
             if log_file is not None:
                 with open(log_file, "a") as f_log:
-                    f_log.write(f" -- {datetime.datetime.now()}\n")
+                    f_log.write(f" -- {datetime.now()}\n")
                     f_log.write(f"    '{cmd}'\n")
                     for i in content.strip().split("\n"):
                         f_log.write(i + "\n")

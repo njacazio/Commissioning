@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
 
+"""
+Script to draw monitoring objects taken from the CCDB
+"""
+
 from shutil import ExecError
 from utilities.plotting import draw_nice_canvas, draw_nice_frame, remove_canvas, save_all_canvases, reset_canvases, set_nice_frame
-from common import warning_msg, get_default_parser, set_verbose_mode, verbose_msg
+from common import warning_msg, get_default_parser, set_verbose_mode, verbose_msg, convert_timestamp
 from ROOT import TFile, TH1, TLatex
 from os import path
 import glob
@@ -13,15 +17,15 @@ import configparser
 labels_drawn = []
 
 
-def draw_label(label, x=0.55, y=0.96):
+def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
     while label.startswith(" ") or label.endswith(" "):
         label = label.strip()
     l = TLatex(x, y, label)
     l.SetNDC()
     l.Draw()
-    l.SetTextAlign(21)
+    l.SetTextAlign(align)
     l.SetTextFont(42)
-    l.SetTextSize(0.035)
+    l.SetTextSize(size)
     labels_drawn.append(l)
     return l
 
@@ -33,7 +37,8 @@ def draw(filename,
          out_path="/tmp/",
          extensions=["png", "root"],
          configuration=None,
-         save=False):
+         save=False,
+         metadata_of_interest=None):
     reset_canvases()
     filename = path.normpath(filename)
     f_tag = filename.split("/")[-2]
@@ -47,6 +52,23 @@ def draw(filename,
         pass
     h = input_file.Get("ccdb_object")
     h.SetDirectory(0)
+    if metadata_of_interest is not None:
+        metadata = input_file.Get("ccdb_meta")
+        m = {}
+        for i in metadata:
+            if type(metadata_of_interest) is list:
+                if i[0] in metadata_of_interest:
+                    print(i[0], "->", i[1])
+                    if i[0] in ["Valid-From", "Valid-Until"]:
+                        m[i[0]] = f"{i[1]} {convert_timestamp(i[1])}"
+                    else:
+                        m[i[0]] = i[1]
+            else:
+                print(i[0], "->", i[1])
+        if len(m) > 0:
+            metadata_of_interest = m
+        else:
+            metadata_of_interest = None
     input_file.Close()
     h.SetName(f_tag)
     drawopt = ""
@@ -57,6 +79,10 @@ def draw(filename,
     h.SetBit(TH1.kNoTitle)
     postprocess = ""
     if configuration is not None:
+        if type(configuration) is str:
+                c = configparser.RawConfigParser()
+                c.read(configuration)
+                configuration = c
         def get_option(opt, forcetype=None):
             src = "DEFAULT"
             if configuration.has_option(f_tag, opt):
@@ -124,6 +150,12 @@ def draw(filename,
         draw_label(h.GetTitle())
     if "TEfficiency" in h.ClassName():
         h.SetTitle("")
+    if metadata_of_interest is not None:
+        yl = 0.4
+        for i in metadata_of_interest:
+            draw_label(f"{i} = {metadata_of_interest[i]}",
+                       x=0.9, y=yl, size=0.025, align=31)
+            yl -= 0.03
     can.Update()
     if save:
         for i in extensions:
@@ -177,6 +209,11 @@ if __name__ == "__main__":
     parser = get_default_parser("Fetch data from CCDB"
                                 "Basic example: `./draw.py`")
 
+    parser.add_argument('--inputfile', "-i",
+                        type=str,
+                        default=None,
+                        nargs="+",
+                        help='Draw a single file')
     parser.add_argument('--only', "-O",
                         type=str,
                         default=None,
@@ -211,21 +248,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_verbose_mode(args)
 
-    r = main(draw_only=args.only,
-             tag=args.intag,
-             main_path=args.mainpath,
-             wait=args.wait,
-             refresh=args.refresh,
-             save=args.save)
-    if 1:
-        l = []
-        for i in object_drawn:
-            if i in r.sections():
-                continue
-            l.append(f"[{i}]")
-        if len(l) > 0:
-            print("Processed objects without config:")
-            for i in l:
-                print(i)
+    if args.inputfile is not None:
+        for i in args.inputfile:
+            intersting = ["RunNumber", "Valid-From", "Valid-Until"]
+            r = draw(i, metadata_of_interest=intersting)
+    else:
+        r = main(draw_only=args.only,
+                 tag=args.intag,
+                 main_path=args.mainpath,
+                 wait=args.wait,
+                 refresh=args.refresh,
+                 save=args.save)
+        if 1:
+            l = []
+            for i in object_drawn:
+                if i in r.sections():
+                    continue
+                l.append(f"[{i}]")
+            if len(l) > 0:
+                print("Processed objects without config:")
+                for i in l:
+                    print(i)
     if not args.b:
         input("Press enter to continue")
