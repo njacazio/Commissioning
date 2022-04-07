@@ -87,7 +87,10 @@ def fatal_msg(*args, fatal_message="Fatal Error!"):
     raise RuntimeError(fatal_message)
 
 
-list_of_warnings = multiprocessing.Manager().list()
+try:
+    list_of_warnings = multiprocessing.Manager().list()
+except:
+    list_of_warnings = []
 
 
 def warning_msg(*args, add=True):

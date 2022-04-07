@@ -54,6 +54,7 @@ def get_ccdb_obj(ccdb_path,
     if tag:
         out_name = os.path.splitext(out_name)
         out_name = f"{out_name[0]}_{timestamp}{out_name[1]}"
+        fullname = os.path.join(out_path, ccdb_path, out_name)
     verbose_msg("Getting obj", ccdb_path, "with timestamp",
                 timestamp, convert_timestamp(timestamp), "from host", host, "to", fullname)
     if os.path.isfile(fullname) and not overwrite_preexisting:
@@ -154,28 +155,30 @@ def main(ccdb_path,
 
 
 if __name__ == "__main__":
-    parser = get_default_parser("Fetch data from CCDB"
+    parser = get_default_parser("Fetch data from CCDB. "
                                 "Basic example: `./fetch_output.py qc/TOF/MO/TaskRaw/hDiagnostic`")
     parser.add_argument('ccdb_path',
                         metavar='path_to_object',
                         type=str,
-                        help='Path of the object in the CCDB repository. If a `.txt` file is passed the all the file input is downloaded. Can also be an address e.g. if http://qcdb.cern.ch:8083/browse/qc/TOF/MO/TaskDigits/TOFRawsMulti the host is taken from there')
+                        help="Path of the object in the CCDB repository. If a `.txt` file is passed the all the file input is downloaded."
+                             "Can also be an address e.g. if http://qcdb.cern.ch:8083/browse/qc/TOF/MO/TaskDigits/TOFRawsMulti the host is taken from there")
     parser.add_argument('--timestamp', "-t",
                         metavar='object_timestamp',
                         type=str,
                         default=["-1"],
                         nargs="+",
-                        help='Timestamp of the object to fetch, by default -1 (latest)')
+                        help='Timestamp of the object to fetch, by default -1 (latest). Can accept more then one timestamp.')
     parser.add_argument('--out_path', "-o",
                         default="/tmp/",
                         type=str,
-                        help='Output path on your local machine')
+                        help='[/tmp/] Output path on your local machine')
     parser.add_argument('--ccdb_host', "-H",
                         default="qcdb.cern.ch:8083",
                         type=str,
                         help='Host to use for the CCDB fetch e.g. qcdb.cern.ch:8083 or http://ccdb-test.cern.ch:8080')
-    parser.add_argument('--tag', '-T', action='store_true')
-    parser.add_argument('--show', '-s', action='store_true')
+    parser.add_argument('--tag', '-T', action='store_true',
+                        help='Flag to tag the output files with the timestamp')
+    parser.add_argument('--show', '-s', action='store_true',  help='Flag to draw the output.')
 
     args = parser.parse_args()
     set_verbose_mode(args)

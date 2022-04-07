@@ -38,6 +38,7 @@ def draw(filename,
          extensions=["png", "root"],
          configuration=None,
          save=False,
+         save_tag="",
          metadata_of_interest=None):
     reset_canvases()
     filename = path.normpath(filename)
@@ -99,8 +100,13 @@ def draw(filename,
             if type(o) is str:
                 while o.startswith(" ") or o.endswith(" "):
                     o = o.strip()
-            # print(f"'{o}'", type(o))
+            verbose_msg(f"Got for option {opt} from {src} '{o}'", type(o))
             return o
+        if get_option("skip", forcetype=bool):
+            verbose_msg("Skipping", filename)
+            remove_canvas(can)
+            del can
+            return
         can.SetLogx(get_option("logx", bool))
         can.SetLogy(get_option("logy", bool))
         can.SetLogz(get_option("logz", bool))
@@ -159,7 +165,7 @@ def draw(filename,
     can.Update()
     if save:
         for i in extensions:
-            saveas = path.join(out_path, f"{f_tag}.{i}")
+            saveas = path.join(out_path, f"{f_tag}{save_tag}.{i}")
             can.SaveAs(saveas)
     if f_tag in object_drawn:
         warning_msg("Replacing", f_tag)
@@ -167,21 +173,24 @@ def draw(filename,
     return can, h
 
 
-def main(tag="qc",
-         main_path="/tmp/",
+def main(main_path="/tmp/qc/",
          draw_only=["mDeltaXEtaCONSTR"],
          filename="snapshot.root",
+         timestamp=None,
          config_file="drawconfig.conf",
          wait=False,
          refresh=False,
          save=False):
+    if timestamp is not None:
+        filename = path.splitext(filename)
+        filename = f"{filename[0]}_{timestamp}{filename[1]}"
+
     config_parser = configparser.RawConfigParser()
     config_parser.read(config_file)
-    p = path.join(main_path, tag)
-    if not path.isdir(p):
-        raise ExecError("Cannot find directory", p)
+    if not path.isdir(main_path):
+        raise ExecError("Cannot find directory", main_path)
     files = [f for f in glob.glob(
-        path.join(p, f"**/{filename}"), recursive=True)]
+        path.join(main_path, f"**/{filename}"), recursive=True)]
     for fn in files:
         process = True
         if draw_only is not None:
@@ -192,8 +201,13 @@ def main(tag="qc",
                 process = True
         if not process:
             continue
-        r = draw(fn, configuration=config_parser, save=save,
-                 out_path=path.join(main_path, tag))
+        save_tag = ""
+        if timestamp is not None:
+            save_tag = f"_{timestamp}"
+        r = draw(fn, configuration=config_parser,
+                 save=save,
+                 save_tag=save_tag,
+                 out_path=main_path)
         if wait:
             input(
                 f"'{r[1].GetName()}' {r[1].ClassName()} press enter to continue")
@@ -206,27 +220,23 @@ def main(tag="qc",
 
 
 if __name__ == "__main__":
-    parser = get_default_parser("Fetch data from CCDB"
+    parser = get_default_parser("Script to draw the monitoring object fetched from CCDB " 
+                                "It usally work with a configuration file that specifies the input files and options. "
                                 "Basic example: `./draw.py`")
 
     parser.add_argument('--inputfile', "-i",
                         type=str,
                         default=None,
                         nargs="+",
-                        help='Draw a single file')
+                        help='Draw a single file. Optional argument that bypasses the configuration file.')
     parser.add_argument('--only', "-O",
                         type=str,
                         default=None,
                         nargs="+",
                         help='Names of the objects to draw exclusively')
-    parser.add_argument('--intag', "-t",
-                        type=str,
-                        default="qc",
-                        # nargs="+",
-                        help='Tag for the input')
     parser.add_argument('--mainpath', "-M",
                         type=str,
-                        default="/tmp/",
+                        default="/tmp/qc/",
                         help='Main path where to take input and post output')
     parser.add_argument('--config', "-c",
                         type=str,
@@ -244,6 +254,12 @@ if __name__ == "__main__":
     parser.add_argument('--save', "-S",
                         action="store_true",
                         help='Option save images')
+    parser.add_argument('--timestamp', "-t",
+                        metavar='object_timestamp',
+                        type=str,
+                        default=[None],
+                        nargs="+",
+                        help='Timestamp of the object to fetch, by default -1 (latest). Can accept more then one timestamp.')
 
     args = parser.parse_args()
     set_verbose_mode(args)
@@ -253,12 +269,13 @@ if __name__ == "__main__":
             intersting = ["RunNumber", "Valid-From", "Valid-Until"]
             r = draw(i, metadata_of_interest=intersting)
     else:
-        r = main(draw_only=args.only,
-                 tag=args.intag,
-                 main_path=args.mainpath,
-                 wait=args.wait,
-                 refresh=args.refresh,
-                 save=args.save)
+        for i in args.timestamp:
+            r = main(draw_only=args.only,
+                    main_path=args.mainpath,
+                    wait=args.wait,
+                    refresh=args.refresh,
+                    timestamp=i,
+                    save=args.save)
         if 1:
             l = []
             for i in object_drawn:
