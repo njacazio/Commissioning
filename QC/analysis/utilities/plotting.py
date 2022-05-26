@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from ROOT import TCanvas, gPad, TLegend
+from ROOT import TCanvas, gPad, TLegend, TLatex
 
 nice_canvases = {}
 
@@ -29,6 +29,20 @@ def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, titl
     nice_canvases[name] = c
     return c
 
+labels_drawn = []
+
+
+def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
+    while label.startswith(" ") or label.endswith(" "):
+        label = label.strip()
+    l = TLatex(x, y, label)
+    l.SetNDC()
+    l.Draw()
+    l.SetTextAlign(align)
+    l.SetTextFont(42)
+    l.SetTextSize(size)
+    labels_drawn.append(l)
+    return l
 
 def update_all_canvases():
     for i in nice_canvases:
@@ -61,6 +75,7 @@ def save_all_canvases(n):
         if i == dn[1]:
             c.SaveAs(f"{n}]")
 
+
 def set_nice_frame(h):
     if "TEff" in h.ClassName():
         gPad.GetListOfPrimitives().ls()
@@ -79,6 +94,23 @@ nice_frames = {}
 def draw_nice_frame(c, x, y, xt, yt):
     c.cd()
     global nice_frames
+    if not type(x) is list:
+        if "TEff" in x.ClassName():
+            x = x.GetTotalHistogram()
+        x = [x.GetXaxis().GetBinLowEdge(1),
+             x.GetXaxis().GetBinUpEdge(x.GetNbinsX())]
+    if not type(y) is list:
+        iseff = True
+        if "TEff" in y.ClassName():
+            y = y.GetTotalHistogram()
+            iseff = True
+        if "TH2" in y.ClassName():
+            y = [y.GetYaxis().GetBinLowEdge(1),
+                 y.GetYaxis().GetBinUpEdge(y.GetNbinsX())]
+        elif iseff:
+            y = [0, 1]
+        else:
+            y = [y.GetMinimum(), y.GetMaximum()]
     if not type(xt) is str:
         if "TEff" in xt.ClassName():
             xt = xt.GetTotalHistogram()

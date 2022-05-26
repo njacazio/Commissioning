@@ -14,22 +14,6 @@ import glob
 import configparser
 
 
-labels_drawn = []
-
-
-def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
-    while label.startswith(" ") or label.endswith(" "):
-        label = label.strip()
-    l = TLatex(x, y, label)
-    l.SetNDC()
-    l.Draw()
-    l.SetTextAlign(align)
-    l.SetTextFont(42)
-    l.SetTextSize(size)
-    labels_drawn.append(l)
-    return l
-
-
 object_drawn = {}
 
 
@@ -81,9 +65,10 @@ def draw(filename,
     postprocess = ""
     if configuration is not None:
         if type(configuration) is str:
-                c = configparser.RawConfigParser()
-                c.read(configuration)
-                configuration = c
+            c = configparser.RawConfigParser()
+            c.read(configuration)
+            configuration = c
+
         def get_option(opt, forcetype=None):
             src = "DEFAULT"
             if configuration.has_option(f_tag, opt):
@@ -220,7 +205,7 @@ def main(main_path="/tmp/qc/",
 
 
 if __name__ == "__main__":
-    parser = get_default_parser("Script to draw the monitoring object fetched from CCDB " 
+    parser = get_default_parser("Script to draw the monitoring object fetched from CCDB "
                                 "It usally work with a configuration file that specifies the input files and options. "
                                 "Basic example: `./draw.py`")
 
@@ -271,11 +256,11 @@ if __name__ == "__main__":
     else:
         for i in args.timestamp:
             r = main(draw_only=args.only,
-                    main_path=args.mainpath,
-                    wait=args.wait,
-                    refresh=args.refresh,
-                    timestamp=i,
-                    save=args.save)
+                     main_path=args.mainpath,
+                     wait=args.wait,
+                     refresh=args.refresh,
+                     timestamp=i,
+                     save=args.save)
         if 1:
             l = []
             for i in object_drawn:
