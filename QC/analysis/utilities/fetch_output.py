@@ -173,7 +173,7 @@ if __name__ == "__main__":
                         type=str,
                         help='[/tmp/] Output path on your local machine')
     parser.add_argument('--ccdb_host', "-H",
-                        default="qcdb.cern.ch:8083",
+                        default="http://ali-qcdb-gpn.cern.ch:8083",
                         type=str,
                         help='Host to use for the CCDB fetch e.g. qcdb.cern.ch:8083 or http://ccdb-test.cern.ch:8080')
     parser.add_argument('--tag', '-T', action='store_true',
