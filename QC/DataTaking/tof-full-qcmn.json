@@ -85,7 +85,7 @@
         "dataSources": [
           {
             "type": "repository",
-            "path": "TOF/MO/TaskDigits/Multiplicity",
+            "path": "qc/TOF/MO/TaskDigits/Multiplicity",
             "names": [
               "Integrated"
             ],
@@ -106,7 +106,7 @@
           "userorcontrol"
         ],
         "updateTrigger": [
-          "newobject:qcdb:TOF/MO/TaskDigits/Multiplicity/Integrated"
+          "newobject:qcdb:qc/TOF/MO/TaskDigits/Multiplicity/Integrated"
         ],
         "stopTrigger": [
           "userorcontrol"
