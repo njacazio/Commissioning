@@ -12,3 +12,4 @@ dpl-config.json
 *.toc
 __pycache__
 .ipynb_checkpoints
+.vscode

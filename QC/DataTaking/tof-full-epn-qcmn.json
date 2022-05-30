@@ -42,12 +42,13 @@
         },
         "location": "local",
         "localMachines": [
-          "alio2-cr1-flp178",
-          "alio2-cr1-flp179"
+          "epn",
+	  "localhost"
         ],
-        "remoteMachine": "localhost",
-        "remotePort": "30132",
-        "mergingMode": "delta"
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
+        "remotePort": "47709",
+        "mergingMode": "delta",
+        "localControl": "odc"
       },
       "TaskDigits": {
         "active": "true",
@@ -236,8 +237,8 @@
       "id": "raw-local",
       "active": "true",
       "machines": [
-        "alio2-cr1-flp178",
-        "alio2-cr1-flp179"
+        "epn",
+        "localhost"
       ],
       "query": "dataframe:TOF/CRAWDATA",
       "samplingConditions": [
@@ -256,7 +257,6 @@
         "epn",
         "localhost"
       ],
-      "port": "30333",
       "query": "tofdigits:TOF/DIGITS/0;readoutwin:TOF/READOUTWINDOW/0;diafreq:TOF/DIAFREQ/0",
       "samplingConditions": [
         {
