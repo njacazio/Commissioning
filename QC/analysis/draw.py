@@ -6,9 +6,9 @@ Script to draw monitoring objects taken from the CCDB
 """
 
 from shutil import ExecError
-from utilities.plotting import draw_nice_canvas, draw_nice_frame, remove_canvas, save_all_canvases, reset_canvases, set_nice_frame
+from utilities.plotting import draw_nice_canvas, draw_nice_frame, remove_canvas, save_all_canvases, reset_canvases, set_nice_frame, draw_label
 from common import warning_msg, get_default_parser, set_verbose_mode, verbose_msg, convert_timestamp
-from ROOT import TFile, TH1, TLatex
+from ROOT import TFile, TH1, TLatex, gROOT
 from os import path
 import glob
 import configparser
@@ -27,7 +27,7 @@ def draw(filename,
     reset_canvases()
     filename = path.normpath(filename)
     f_tag = filename.split("/")[-2]
-    verbose_msg("Processing", filename, f"'{f_tag}'")
+    print("Processing", filename, f"'{f_tag}'")
     can = draw_nice_canvas(f_tag)
     input_file = None
     h = None
@@ -36,7 +36,14 @@ def draw(filename,
     except:
         pass
     h = input_file.Get("ccdb_object")
-    h.SetDirectory(0)
+    cname = h.ClassName()
+    verbose_msg("Got MO", cname)
+    if "TH" in cname or "TProfile" in cname:
+        h.SetDirectory(0)
+    if "TCanvas" in cname:
+        lp = h.GetListOfPrimitives()
+        # lp.ls()
+        h = lp.FindObject("Graph")
     if metadata_of_interest is not None:
         metadata = input_file.Get("ccdb_meta")
         m = {}
@@ -73,6 +80,12 @@ def draw(filename,
             src = "DEFAULT"
             if configuration.has_option(f_tag, opt):
                 src = f_tag
+            else:
+                f_tag_reduced = f_tag
+                for i in enumerate(f_tag):
+                    f_tag_reduced = f_tag_reduced[:-1]
+                    if configuration.has_option(f"{f_tag_reduced}*", opt):
+                        src = f"{f_tag_reduced}*"
             # verbose_msg("Getting option", src, opt)
             o = configuration.get(src, opt)
             if forcetype is not None:
@@ -87,11 +100,23 @@ def draw(filename,
                     o = o.strip()
             verbose_msg(f"Got for option {opt} from {src} '{o}'", type(o))
             return o
+
+        if get_option("prependpath", forcetype=bool):
+            remove_canvas(can)
+            del can
+            new_ftag = filename.split("/")[-3:-1]
+            new_ftag = "_".join(new_ftag)
+            can = draw_nice_canvas(new_ftag)
+            h.SetName(new_ftag)
+            print("Renaming", f_tag, "to", new_ftag)
+            f_tag = new_ftag
+
         if get_option("skip", forcetype=bool):
             verbose_msg("Skipping", filename)
             remove_canvas(can)
             del can
             return
+
         can.SetLogx(get_option("logx", bool))
         can.SetLogy(get_option("logy", bool))
         can.SetLogz(get_option("logz", bool))
@@ -124,6 +149,7 @@ def draw(filename,
             y = h.GetTotalHistogram().GetYaxis()
             y = [y.GetBinLowEdge(1), y.GetBinUpEdge(y.GetNbins())]
         draw_nice_frame(can, x, y, h, h)
+        print("YO", h.GetName(), drawopt)
         h.Draw(drawopt+"same")
     else:
         set_nice_frame(h)
@@ -142,11 +168,13 @@ def draw(filename,
     if "TEfficiency" in h.ClassName():
         h.SetTitle("")
     if metadata_of_interest is not None:
-        yl = 0.4
+        position = get_option("metadatalabel").strip()
+        position = position.split(" ")
+        position = [float(position[0]), float(position[1]), float(position[2])]
         for i in metadata_of_interest:
             draw_label(f"{i} = {metadata_of_interest[i]}",
-                       x=0.9, y=yl, size=0.025, align=31)
-            yl -= 0.03
+                       x=position[0], y=position[1], size=position[2], align=31)
+            position[1] -= 0.03
     can.Update()
     if save:
         for i in extensions:
@@ -192,6 +220,7 @@ def main(main_path="/tmp/qc/",
         r = draw(fn, configuration=config_parser,
                  save=save,
                  save_tag=save_tag,
+                 metadata_of_interest=["RunNumber"],
                  out_path=main_path)
         if wait:
             input(
@@ -221,13 +250,14 @@ if __name__ == "__main__":
                         help='Names of the objects to draw exclusively')
     parser.add_argument('--mainpath', "-M",
                         type=str,
-                        default="/tmp/qc/",
+                        nargs="+",
+                        default=["/tmp/qc/"],
                         help='Main path where to take input and post output')
     parser.add_argument('--config', "-c",
                         type=str,
                         default="drawconfig.conf",
                         help='Name of the configuration file to use')
-    parser.add_argument("-b",
+    parser.add_argument("--background", "-b",
                         action="store_true",
                         help='Background mode')
     parser.add_argument('--wait', "-w",
@@ -248,6 +278,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     set_verbose_mode(args)
+    if args.background:
+        gROOT.SetBatch(True)
 
     if args.inputfile is not None:
         for i in args.inputfile:
@@ -255,12 +287,13 @@ if __name__ == "__main__":
             r = draw(i, metadata_of_interest=intersting)
     else:
         for i in args.timestamp:
-            r = main(draw_only=args.only,
-                     main_path=args.mainpath,
-                     wait=args.wait,
-                     refresh=args.refresh,
-                     timestamp=i,
-                     save=args.save)
+            for j in args.mainpath:
+                r = main(draw_only=args.only,
+                         main_path=j,
+                         wait=args.wait,
+                         refresh=args.refresh,
+                         timestamp=i,
+                         save=args.save)
         if 1:
             l = []
             for i in object_drawn:
@@ -271,5 +304,5 @@ if __name__ == "__main__":
                 print("Processed objects without config:")
                 for i in l:
                     print(i)
-    if not args.b:
+    if not args.background:
         input("Press enter to continue")

@@ -2,7 +2,7 @@
 
 import subprocess
 from ROOT import TFile, gPad, TPaveText, o2, std
-from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_ccdb_api, warning_msg, convert_timestamp
+from common import verbose_msg, set_verbose_mode, get_default_parser, msg, get_ccdb_api, warning_msg, convert_timestamp, fatal_msg
 import os
 
 
@@ -15,6 +15,7 @@ def get_ccdb_obj(ccdb_path,
                  overwrite_preexisting=True,
                  use_o2_api=True,
                  check_metadata=True,
+                 musthave_in_metadata=None,
                  interesting_metadata=["ObjectType",
                                        "PassName",
                                        "PeriodName",
@@ -91,6 +92,18 @@ def get_ccdb_obj(ccdb_path,
         for i in meta:
             if i[0] in m_d:
                 m_d[i[0]] = int(i[1])
+            if musthave_in_metadata is not None:
+                for metatohave in musthave_in_metadata:
+                    if metatohave != i[0]:
+                        continue
+                    mvalue = musthave_in_metadata[metatohave]
+                    if mvalue != i[1]:
+                        for m in meta:
+                            print(m)
+                        warning_msg(musthave_in_metadata, "metadata",
+                                    i[1], "not matching required metadata", mvalue, "!")
+                        os.remove(os.path.join(fullname))
+                        return
             if interesting_metadata[0] != "" and i[0] not in interesting_metadata:
                 continue
             if i[0] in m_d:
@@ -122,6 +135,7 @@ def main(ccdb_path,
          timestamp=-1,
          out_path="/tmp/",
          host="qcdb.cern.ch:8083",
+         musthave_in_metadata=None,
          show=False,
          tag=None):
     timestamp = convert_timestamp(timestamp, make_timestamp=True)
@@ -142,6 +156,7 @@ def main(ccdb_path,
                                    timestamp=timestamp,
                                    tag=tag,
                                    show=show,
+                                   musthave_in_metadata=musthave_in_metadata,
                                    host=host)
                 downloaded.append(obj)
     else:
@@ -150,8 +165,31 @@ def main(ccdb_path,
                            timestamp=timestamp,
                            tag=tag,
                            show=show,
+                           musthave_in_metadata=musthave_in_metadata,
                            host=host)
         downloaded.append(obj)
+
+
+def fetchfromfile(filename, ccdb_path, args):
+    with open(filename) as f:
+        for i in f:
+            i = i.strip()
+            while "  " in i:
+                i = i.replace("  ", " ")
+            i = i.replace(":", "")
+            i = i.split()
+            # print(i)
+            run_number = i[0]
+            timestamp = i[1]
+            out_path = f"{args.out_path}/Run{run_number}"
+
+            main(ccdb_path=ccdb_path,
+                 out_path=out_path,
+                 timestamp=timestamp,
+                 show=args.show,
+                 tag=args.tag,
+                 musthave_in_metadata={"RunNumber": run_number},
+                 host=ccdb_host)
 
 
 if __name__ == "__main__":
@@ -169,7 +207,7 @@ if __name__ == "__main__":
                         nargs="+",
                         help='Timestamp of the object to fetch, by default -1 (latest). Can accept more then one timestamp.')
     parser.add_argument('--out_path', "-o",
-                        default="/tmp/",
+                        default="/tmp/QCMOs/",
                         type=str,
                         help='[/tmp/] Output path on your local machine')
     parser.add_argument('--ccdb_host', "-H",
@@ -178,7 +216,12 @@ if __name__ == "__main__":
                         help='Host to use for the CCDB fetch e.g. qcdb.cern.ch:8083 or http://ccdb-test.cern.ch:8080')
     parser.add_argument('--tag', '-T', action='store_true',
                         help='Flag to tag the output files with the timestamp')
-    parser.add_argument('--show', '-s', action='store_true',  help='Flag to draw the output.')
+    parser.add_argument('--show', '-s', action='store_true',
+                        help='Flag to draw the output.')
+    parser.add_argument('--useinputfile', "-I",
+                        default=None,
+                        type=str,
+                        help='Input file name')
 
     args = parser.parse_args()
     set_verbose_mode(args)
@@ -193,10 +236,13 @@ if __name__ == "__main__":
         ccdb_path = ccdb_path[1]
         msg("Overriding host to", ccdb_host)
 
-    for i in args.timestamp:
-        main(ccdb_path=ccdb_path,
-             out_path=args.out_path,
-             timestamp=i,
-             show=args.show,
-             tag=args.tag,
-             host=ccdb_host)
+    if args.useinputfile is not None:
+        fetchfromfile(args.useinputfile, ccdb_path, args)
+    else:
+        for i in args.timestamp:
+            main(ccdb_path=ccdb_path,
+                 out_path=args.out_path,
+                 timestamp=i,
+                 show=args.show,
+                 tag=args.tag,
+                 host=ccdb_host)

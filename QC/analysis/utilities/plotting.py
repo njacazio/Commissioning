@@ -29,10 +29,12 @@ def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, titl
     nice_canvases[name] = c
     return c
 
+
 labels_drawn = []
 
 
 def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
+    global labels_drawn
     while label.startswith(" ") or label.endswith(" "):
         label = label.strip()
     l = TLatex(x, y, label)
@@ -43,6 +45,7 @@ def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
     l.SetTextSize(size)
     labels_drawn.append(l)
     return l
+
 
 def update_all_canvases():
     for i in nice_canvases:
