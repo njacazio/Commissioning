@@ -46,13 +46,11 @@
         },
         "location": "local",
         "localMachines": [
-          "epn",
-          "localhost"
+          "mustbenomachine"
         ],
         "remoteMachine": "alio2-cr1-qc03.cern.ch",
         "remotePort": "47710",
-        "mergingMode": "delta",
-        "localControl": "odc"
+        "mergingMode": "delta"
       },
       "MatchingTOFwTRD": {
         "active": "true",
@@ -78,13 +76,11 @@
         },
         "location": "local",
         "localMachines": [
-          "epn",
-          "localhost"
+          "mustbenomachine"
         ],
         "remoteMachine": "alio2-cr1-qc03.cern.ch",
         "remotePort": "47711",
-        "mergingMode": "delta",
-        "localControl": "odc"
+        "mergingMode": "delta"
       },
       "TaskRaw": {
         "active": "true",
@@ -336,8 +332,7 @@
       "id": "trkWTRD-local",
       "active": "true",
       "machines": [
-        "epn",
-        "localhost"
+        "mustbenomachine"
       ],
       "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0;trackITSTPCTRD:TRD/MATCH_ITSTPC/0;matchITSTPCTRDTOF:TOF/MTC_ITSTPCTRD/0;trigITSTPCTRD:TRD/TRGREC_ITSTPC/0",
       "samplingConditions": [
@@ -353,8 +348,7 @@
       "id": "trk-clu-local",
       "active": "true",
       "machines": [
-        "epn",
-        "localhost"
+        "mustbenomachine"
       ],
       "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0",
       "samplingConditions": [
