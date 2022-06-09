@@ -22,7 +22,7 @@
       }
     },
     "tasks": {
-      "MatchingTOF": {
+      "MergeMETOF": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
         "moduleName": "QcTOF",
@@ -52,7 +52,7 @@
         "remotePort": "47710",
         "mergingMode": "delta"
       },
-      "MatchingTOFwTRD": {
+      "MergeMETOFwTRD": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
         "moduleName": "QcTOF",
