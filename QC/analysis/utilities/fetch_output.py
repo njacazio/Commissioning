@@ -99,6 +99,7 @@ def get_ccdb_obj(ccdb_path,
                     mvalue = musthave_in_metadata[metatohave]
                     if mvalue != i[1]:
                         for m in meta:
+                            continue
                             print(m)
                         warning_msg(musthave_in_metadata, "metadata",
                                     i[1], "not matching required metadata", mvalue, "!")
@@ -136,8 +137,12 @@ def main(ccdb_path,
          out_path="/tmp/",
          host="qcdb.cern.ch:8083",
          musthave_in_metadata=None,
+         retry_policy=0,
+         retry_delta=30,
          show=False,
          tag=None):
+    if retry_policy < 0:
+        fatal_msg("Can't have a negative retry policy")
     timestamp = convert_timestamp(timestamp, make_timestamp=True)
     downloaded = []
     # The input file is a list of objects
@@ -151,23 +156,37 @@ def main(ccdb_path,
                     continue
                 if "%" in i:
                     break
-                obj = get_ccdb_obj(ccdb_path=i,
-                                   out_path=out_path,
-                                   timestamp=timestamp,
-                                   tag=tag,
-                                   show=show,
-                                   musthave_in_metadata=musthave_in_metadata,
-                                   host=host)
-                downloaded.append(obj)
+                for j in range(retry_policy+1):
+                    obj = get_ccdb_obj(ccdb_path=i,
+                                       out_path=out_path,
+                                       timestamp=timestamp + j * retry_delta,
+                                       tag=tag,
+                                       show=show,
+                                       musthave_in_metadata=musthave_in_metadata,
+                                       host=host)
+                    if obj is not None:
+                        downloaded.append(obj)
+                        if j > 0:
+                            warning_msg("Managed after", j, "tries")
+                        break
+                    warning_msg("Retrying retrieval", j, "out of", retry_policy,
+                                "adding to timestamp", j * retry_delta, "ms")
     else:
-        obj = get_ccdb_obj(ccdb_path=ccdb_path,
-                           out_path=out_path,
-                           timestamp=timestamp,
-                           tag=tag,
-                           show=show,
-                           musthave_in_metadata=musthave_in_metadata,
-                           host=host)
-        downloaded.append(obj)
+        for j in range(retry_policy+1):
+            obj = get_ccdb_obj(ccdb_path=ccdb_path,
+                               out_path=out_path,
+                               timestamp=timestamp + j * retry_delta,
+                               tag=tag,
+                               show=show,
+                               musthave_in_metadata=musthave_in_metadata,
+                               host=host)
+            if obj is not None:
+                downloaded.append(obj)
+                if j > 0:
+                    warning_msg("Managed after", j, "tries")
+                break
+            warning_msg("Retrying retrieval", j, "out of", retry_policy,
+                        "adding to timestamp", j * retry_delta, "ms")
 
 
 def fetchfromfile(filename, ccdb_path, args):
@@ -176,6 +195,12 @@ def fetchfromfile(filename, ccdb_path, args):
             i = i.strip()
             while "  " in i:
                 i = i.replace("  ", " ")
+            if i == "":
+                continue
+            if i.startswith("#"):
+                continue
+            if i.startswith("%"):
+                break
             i = i.replace(":", "")
             i = i.split()
             # print(i)
@@ -188,6 +213,8 @@ def fetchfromfile(filename, ccdb_path, args):
                  timestamp=timestamp,
                  show=args.show,
                  tag=args.tag,
+                 retry_policy=10,
+                 retry_delta=1000,
                  musthave_in_metadata={"RunNumber": run_number},
                  host=ccdb_host)
 
