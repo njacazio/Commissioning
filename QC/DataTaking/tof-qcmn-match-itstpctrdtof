@@ -52,8 +52,8 @@
           "minNTPCClustersCut": "60",
           "minDCACut": "100.f",
           "minDCACutY": "10.f",
-          "grpFileName": "/home/epn/odc/files/o2sim_grp.root",
-          "geomFileName": "/home/epn/odc/files/o2sim"
+          "grpFileName": "o2sim_grp.root",
+          "geomFileName": "o2sim"
         }
       }
     }
