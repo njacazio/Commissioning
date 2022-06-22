@@ -22,7 +22,7 @@
       }
     },
     "tasks": {
-      "MergeMETOF": {
+      "MatchingTOF": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
         "moduleName": "QcTOF",
@@ -31,7 +31,7 @@
         "maxNumberCycles": "-1",
         "dataSource": {
           "type": "dataSamplingPolicy",
-          "name": "trk-clu-local"
+          "name": "trk-clu-remo"
         },
         "taskParameters": {
           "GID": "ITS-TPC,ITS-TPC-TOF,TPC",
@@ -52,7 +52,7 @@
         "remotePort": "47710",
         "mergingMode": "delta"
       },
-      "MergeMETOFwTRD": {
+      "MatchingTOFwTRD": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
         "moduleName": "QcTOF",
@@ -61,7 +61,7 @@
         "maxNumberCycles": "-1",
         "dataSource": {
           "type": "dataSamplingPolicy",
-          "name": "trkWTRD-local"
+          "name": "trkWTRD-remo"
         },
         "taskParameters": {
           "GID": "ITS-TPC,ITS-TPC-TRD,ITS-TPC-TOF,ITS-TPC-TRD-TOF,TPC",
@@ -329,7 +329,7 @@
       "blocking": "false"
     },
     {
-      "id": "trkWTRD-local",
+      "id": "trkWTRD-remo",
       "active": "true",
       "machines": [
         "mustbenomachine"
@@ -345,7 +345,7 @@
       "blocking": "false"
     },
     {
-      "id": "trk-clu-local",
+      "id": "trk-clu-remo",
       "active": "true",
       "machines": [
         "mustbenomachine"
