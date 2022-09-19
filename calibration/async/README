@@ -1,0 +1,21 @@
+# collect calib info from alien to the local laptop
+
+# if the reconstruction was done in a single dir
+./mergerun.sh $PERIOD $RUN
+# e.g.
+./mergerun.sh LHC22m 523142
+
+# if the reconstruction was splitted in subdir (large runs)
+./mergerunSub.sh LHC22m 523142
+# output also splitted in parts
+
+
+# once collected calibration can be run locally
+export ccdburl="http://ccdb-test.cern.ch:8080"
+./calibLHCrun.sh 523559
+./calibDiarun.sh 523559
+./calibOffset.sh 523559
+# if run was short (only one input) scripts with "Simple" in the name should be used
+
+
+# with this config objects are read (but the ones needed from prod ccdb) and loaded in test ccdb
