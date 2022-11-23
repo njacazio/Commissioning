@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from ROOT import TCanvas, gPad, TLegend, TLatex
+from ROOT import TCanvas, gPad, TLegend, TLatex, TPaveText
 
 nice_canvases = {}
 
@@ -45,6 +45,19 @@ def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
     l.SetTextSize(size)
     labels_drawn.append(l)
     return l
+
+
+paves_drawn = []
+
+
+def draw_pave(lines, x=[.68, .91], y=[.63, .72], opt="brNDC"):
+    global paves_drawn
+    pave = TPaveText(x[0], y[0], x[1], y[1], opt)
+    pave.SetFillColor(0)
+    for i in lines:
+        pave.AddText(i)
+    pave.Draw()
+    paves_drawn.append(pave)
 
 
 def update_all_canvases():

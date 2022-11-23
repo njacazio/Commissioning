@@ -1,0 +1,60 @@
+{
+    "track-propagation": {
+        "lutTimestamp": "-1",
+        "lutTimestamp": "1549114182000",
+        "processStandard": "false",
+        "processCovariance": "true"
+    },
+    "bc-selection-task": {
+        "processRun3": "true",
+        "processRun2": "false"
+    },
+    "event-selection-task": {
+        "syst": "PbPb",
+        "muonSelection": "0",
+        "customDeltaBC": "300",
+        "isMC": "false",
+        "processRun3": "true",
+        "processRun2": "false"
+    },
+    "track-selection": {
+        "isRun3": "true"
+    },
+    "tof-pid-qa": {
+        "logAxis": "0",
+        "nBinsP": "200",
+        "minP": "0.100000001",
+        "maxP": "5",
+        "nBinsDelta": "200",
+        "minDelta": "-1000",
+        "maxDelta": "1000",
+        "nBinsExpSigma": "200",
+        "minExpSigma": "0",
+        "maxExpSigma": "200",
+        "nBinsNSigma": "200",
+        "minNSigma": "-10",
+        "maxNSigma": "10",
+        "applyEvSel": "2",
+        "applyTrackCut": "false",
+        "applyRapidityCut": "false",
+        "enableEvTimeSplitting": "false",
+        "processElectron": "false",
+        "processMuon": "false",
+        "processPion": "false",
+        "processKaon": "false",
+        "processProton": "false",
+        "processDeuteron": "false",
+        "processTriton": "false",
+        "processHelium3": "false",
+        "processAlpha": "false",
+        "processFullElectron": "false",
+        "processFullMuon": "false",
+        "processFullPion": "true",
+        "processFullKaon": "false",
+        "processFullProton": "false",
+        "processFullDeuteron": "false",
+        "processFullTriton": "false",
+        "processFullHelium3": "false",
+        "processFullAlpha": "false"
+    }
+}
