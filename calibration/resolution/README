@@ -1,0 +1,34 @@
+# This is a prototype to extract TOF resolution
+# The idea is to calculate (t-texp)_study - (t-texp)_ref for two particles in the same event
+# ref -> is defined in a strict kinematic reagion (0.6 < p < 0.7 GeV, Chi2 < 5, ITS-TPC tracks)
+# study can be any selection
+# by fixing study = ref (same kinematic region) is possible to extract sigma_ref*sqrt{2}
+# by fitting any other region is possible to measure sqrt{sigma_study*sigma_study + sigma_ref*sigma_ref}
+# once sigma_ref is known (first step) it is possible to derive sigma_study for any kinematic region
+
+# HOW TO RUN
+
+# create a list of AOD to be procecessed locally (access via xrootd/alien)
+# for example
+alien.py find /alice/data/2022/LHC22m/523897/apass2 AO2D.root|awk '{print "alien://"$1}' >lista
+
+# lunch local processing (token is needed)
+# for example (it runs over the full list)
+cat -b lista |awk '{print "./process.sh",$1,$2}' | bash
+
+# merge results (it can be done at any intermediate stage)
+ls tree_* >listaM
+root -b -q -l DoMerge.C
+# -> full.root
+
+# resolution for 1.4 < pT < 1.5 GeV/c (macro tuned in this range)
+root res.C
+
+# resolution for 1.8 < pT < 2.0 GeV/c (macro tuned in this range)
+root res2.C
+
+# check dependence vs p/m and eta
+# Note that the resoltution of the reference particles is hardcoded, sigmaRef (fix it at the proper value, e.g. the one provided by previous macros)
+root makeplot.C
+
+
