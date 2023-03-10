@@ -6,4 +6,5 @@ export output=o2-dataformats-CalibLHCphaseTOF_${created}_${startV}_${stopV}.root
 
 #export output=$(cat ../LHCphase |grep $1 -A 5|grep "Validity"|awk '{print "o2-dataformats-CalibLHCphaseTOF_"$2"_"$2"_"$2.root}')
 export input=$(alien.py find /alice/data/CCDB/TOF/Calib/LHCphase/ $1)
+echo alien.py cp alien://$input file:$output >> downloads
 alien.py cp alien://$input file:$output

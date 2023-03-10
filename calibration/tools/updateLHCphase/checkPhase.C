@@ -4,6 +4,9 @@ void checkPhase(const char* period="LHC22r"){
   TH1F *hDelta = (TH1F *) f->Get("trend_t0TOFFT0");
   TH1F *hTof = (TH1F *) f->Get("trend_t0TOF");
 
+  hDelta->Add(hTof,-1);
+  hDelta->Scale(-1);
+
   hDelta->SetLineColor(2);
   hDelta->SetMarkerColor(2);
 
@@ -19,7 +22,7 @@ void checkPhase(const char* period="LHC22r"){
   for(int i=1; i<=hTof->GetNbinsX();i++){
     float tof = hTof->GetBinContent(i);
     bool badTOF = fabs(tof) > thresholdTOF;
-    float ft0 = tof - hDelta->GetBinContent(i);
+    float ft0 = hDelta->GetBinContent(i);
     bool badFT0 = fabs(ft0) > thresholdFT0;
 
     if(badTOF){

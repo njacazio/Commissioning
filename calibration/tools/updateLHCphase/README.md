@@ -17,3 +17,8 @@ root checkPhase.C\(\"FT0TOF_trending_#period]_apass2.root\"\)
 # e.g.
 cat #period|awk '{print "./get.sh",$1,"#period"}'|bash
 # to run on all problematic runs for a period (as flagged by checkPhase.C)
+# then checks if there are errors (there is a file in each run directory with the list of problematic old objects called "errors")
+# if any let's take a valid one (the closest in timestamp) and copy to the updated_* wrong way (size 0)
+
+# check that all runs are processed
+ls |grep 5|awk '{print "echo",$1,";ls",$1"/upda*|wc -l"}'|bash 2>&1 |grep impossibile -B 1

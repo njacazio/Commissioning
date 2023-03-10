@@ -1,4 +1,6 @@
-void res(){
+float etamax = 0.5;
+
+void res(const char* title=""){
   TF1 *func = new TF1("func","gaus(0)+gaus(3)+gaus(6)",-3000,3000);
   func->SetParameter(0,1000);
   func->SetParameter(1,0);
@@ -17,7 +19,7 @@ void res(){
   func->SetParLimits(8,100,500);
   func->SetNpx(1000);
 
-  TF1 *funcRef = new TF1("funcRef","gaus(0) + pol1(3)",-1000,1000);
+  TF1 *funcRef = new TF1("funcRef","gaus(0) + pol1(3)*0",-1000,1000);
   funcRef->SetParameter(0,1000);
   funcRef->SetParameter(1,0);
   funcRef->SetParLimits(1,-100,100);
@@ -31,6 +33,7 @@ void res(){
   TTree *t = (TTree *) f->Get("tree");
 
   int n = t->GetEntries();
+  int nbins = 250;
 
   float chi2; t->SetBranchAddress("chi2",&chi2);
   float p; t->SetBranchAddress("p",&p);
@@ -41,9 +44,9 @@ void res(){
   float dt; t->SetBranchAddress("dt",&dt);
   float eta; t->SetBranchAddress("eta",&eta);
 
-  TH1F *h = new TH1F("h",";#Delta#Deltat (ps)",1000,-3000,3000);
-  TH1F *hD = new TH1F("hD","1.4 < #it{p}_{T} < 1.5 GeV/#it{c};#Delta#Deltat (ps)",1000,-3000,3000);
-  TH1F *h2 = new TH1F("h2","",1000,-3000,3000);
+  TH1F *h = new TH1F("h",";#Delta#Deltat (ps)",nbins,-3000,3000);
+  TH1F *hD = new TH1F("hD",Form("%s 1.3 < #it{p}_{T} < 1.4 GeV/#it{c};#Delta#Deltat (ps)",title),nbins,-3000,3000);
+  TH1F *h2 = new TH1F("h2","",nbins,-3000,3000);
   h2->SetLineColor(2);
 
   TH1F *hRef = new TH1F("hRef",";#Delta#Deltat (ps)",500,-1000,1000);
@@ -59,12 +62,12 @@ void res(){
       hRef->Fill(dt);
     }
 
-    if(hastrd) continue;
+//    if(!hastrd) continue;
 
     ptUnsigned = fabs(ptSigned);
-    if(ptUnsigned < 1.4 || ptUnsigned > 1.5) continue;
-    if(fabs(eta)>0.1) continue;
-    if(chi2 < 2) h->Fill(dt), hD->Fill(dt);
+    if(ptUnsigned < 1.3 || ptUnsigned > 1.4) continue;
+    if(fabs(eta)>etamax) continue;
+    if(chi2 < 5) h->Fill(dt), hD->Fill(dt);
     else if(chi2 > 5) h2->Fill(dt);
   }
 
@@ -82,18 +85,24 @@ void res(){
   h2->Scale(h->Integral(ibinMin,ibinMax) / h2->Integral(ibinMin,ibinMax));
 
   c->cd(2);
-  hD->Add(h2,-1);
+//  hD->Add(h2,-1);
   hD->Draw();
   hD->Fit(func,"WW");
 
   float sigmaRef = funcRef->GetParameter(2) / sqrt(2.);
   float sigmaTrk = 0;
   float sigma = sqrt(func->GetParameter(2)*func->GetParameter(2) - sigmaRef*sigmaRef - sigmaTrk*sigmaTrk);
-  
+  float sigmaerr = func->GetParError(2) * func->GetParameter(2) / sigma;
+
   printf("TOF resolution = %f ps (ref = %f) after tracking contribution removed (sigmaTrk = %f)\n",sigma,sigmaRef,sigmaTrk);
+
+  FILE *fff = fopen("res.txt","w");
+  fprintf(fff,"%s %.1f %.1f\n",title,sigma,sigmaerr);
+  fclose(fff);
 
   new TCanvas;
   hD->Draw();
   hD->SetStats(0);
-  
+  TLatex *lt = new TLatex(-2800, hD->GetMaximum()*0.8,Form("#sigma_{TOF} = (%.0f #pm %.0f) ps\n",sigma,sigmaerr));  
+  lt->Draw("SAME");
 }
