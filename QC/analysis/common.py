@@ -4,7 +4,7 @@ import multiprocessing
 import time
 from datetime import datetime
 import os
-from ROOT import o2
+from ROOT import o2, gROOT
 
 
 # Global running flags
@@ -49,13 +49,18 @@ def get_ccdb_api(host):
     return ccdb_api[0]
 
 
-def set_verbose_mode(parser, force=False):
+def set_verbose_mode(parser, force=False, bkgmode=True):
     global verbose_mode
     if parser is not None:
         verbose_mode = parser.verbose
     if force:
         verbose_mode = True
+    if bkgmode:
+        if parser.background:
+            gROOT.SetBatch(True)
 
+def is_verbose_mode():
+    return verbose_mode
 
 class bcolors:
     # Colors for bash
@@ -111,6 +116,9 @@ def get_default_parser(description):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--verbose", "-v",
                         action="store_true", help="Verbose mode.")
+    parser.add_argument("--background", "-b",
+                        action="store_true",
+                        help='Background mode')
     # parser.add_argument("--njobs", "--jobs", "-j", type=int,
     #                     default=10,
     #                     help="Number of concurrent jobs, by default 10.")

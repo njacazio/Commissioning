@@ -257,9 +257,6 @@ if __name__ == "__main__":
                         type=str,
                         default="drawconfig.conf",
                         help='Name of the configuration file to use')
-    parser.add_argument("--background", "-b",
-                        action="store_true",
-                        help='Background mode')
     parser.add_argument('--wait', "-w",
                         action="store_true",
                         help='Option to stop at each canvas')
@@ -278,8 +275,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     set_verbose_mode(args)
-    if args.background:
-        gROOT.SetBatch(True)
 
     if args.inputfile is not None:
         for i in args.inputfile:

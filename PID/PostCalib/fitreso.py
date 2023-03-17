@@ -4,10 +4,10 @@
 Script to plot the NSigma, extract resolution and parameters
 """
 
-
+import os
 from debugtrack import DebugTrack
 from ROOT import o2, TFile, TF1, TPaveText, TH1
-from plotting import draw_nice_canvas, update_all_canvases, draw_nice_legend, draw_pave
+from plotting import draw_nice_canvas, update_all_canvases, draw_nice_legend, draw_pave, draw_label
 from common import get_default_parser, set_verbose_mode, warning_msg
 
 
@@ -20,7 +20,7 @@ def main(fname,
     if not f.IsOpen():
         print("Cannot open", fname)
 
-    dnbase = "tof-pid-qa/event"
+    dnbase = "tof-pid-qa"
     if mc:
         dnbase = f"pidTOF-qa-mc-{particle}"
     if not f.Get(dnbase):
@@ -30,29 +30,34 @@ def main(fname,
     f.Get(dnbase).ls()
     histos = {}
 
-    def get(hn, t, draw=True):
-        histos[t] = f.Get(hn)
-        if not histos[t]:
-            warning_msg("Did not find", t)
+    def get(histoname, histotype, draw=True, alternative=None):
+        histos[histotype] = f.Get(histoname)
+        if not histos[histotype]:
+            if alternative is not None:
+                warning_msg("Did not find", histotype, "named", histoname, "trying", alternative)
+                return get(alternative, histotype, draw, None)
+            warning_msg("Did not find", histotype, "named", histoname)
             return
-        histos[t].SetDirectory(0)
-        histos[t].SetName(t)
-        histos[t].SetBit(TH1.kNoStats)
-        if "TH3" in histos[t].ClassName():
+        histos[histotype].SetDirectory(0)
+        histos[histotype].SetName(histotype)
+        histos[histotype].SetBit(TH1.kNoStats)
+        histos[histotype].SetBit(TH1.kNoTitle)
+        if "TH3" in histos[histotype].ClassName():
             if draw:
-                draw_nice_canvas(f"3d{t}", logz=False)
-                histos[t].DrawCopy("COLZ")
-            histos[t] = histos[t].Project3D("yx")
+                draw_nice_canvas(f"3d{histotype}", logz=False)
+                histos[histotype].DrawCopy("COLZ")
+            histos[histotype] = histos[histotype].Project3D("yx")
 
         if not draw:
             return
         if rebinx > 0:
-            histos[t].RebinX(rebinx)
+            histos[histotype].RebinX(rebinx)
         if 1:
-            draw_nice_canvas(f"2d{t}", logz=True)
-            histos[t].DrawCopy("COLZ")
+            draw_nice_canvas(f"2d{histotype}", logz=True)
+            histos[histotype].DrawCopy("COLZ")
+            draw_label(histos[histotype].GetTitle(), x=0.95, y=0.96, align=31)
 
-    get(f"{dnbase}/expected_diff/{particle}", "delta")
+    get(f"{dnbase}/expected_diff/{particle}", "delta", alternative=f"{dnbase}/delta/{particle}")
     get(f"{dnbase}/nsigma/{particle}", "nsigma")
     if mc:
         for i in ["El", "Mu", "Pi", "Ka", "Pr", "De", "Tr", "He", "Al"]:
@@ -89,21 +94,33 @@ def main(fname,
 
     fgaus = TF1("gaus", "gaus", -200, 200)
 
-    def drawslice(hn, x=[0.9, 1.1], fit=True):
+    def drawslice(hn, x=[0.9, 1.1], fit=True, can_name=None):
         if not histos[hn]:
             return
-        draw_nice_canvas(f"hp{hn}")
+        if can_name is None:
+            draw_nice_canvas(f"hp{hn}")
+        else:
+            draw_nice_canvas(can_name)
+
         bins = [histos[hn].GetXaxis().FindBin(x[0]),
                 histos[hn].GetXaxis().FindBin(x[1])]
+        binsx = [histos[hn].GetXaxis().GetBinLowEdge(bins[0]),
+                 histos[hn].GetXaxis().GetBinUpEdge(bins[1])]
         hp = histos[hn].ProjectionY(f"{hn}-{bins[0]}-{bins[1]}",
                                     *bins)
+        hp.SetBit(TH1.kNoStats)
+        hp.SetBit(TH1.kNoTitle)
         hp.SetDirectory(0)
         if fit:
-            hp.Fit(fgaus)
+            if hp.GetEntries() > 10:
+                hp.Fit(fgaus)
         hp.Draw()
+        draw_label("{} [{:.2f},{:.2f}] {}".format(hp.GetTitle(), *binsx, histos[hn].GetXaxis().GetTitle()),
+                   0.95, 0.96, align=31)
         if fit:
             draw_pave(["#mu = {:.3f}".format(fgaus.GetParameter(1)),
                        "#sigma = {:.3f}".format(fgaus.GetParameter(2))])
+        return hp
     drawslice("delta")
     drawslice("nsigma")
 
@@ -141,30 +158,23 @@ def main(fname,
         return exptimes.GetExpectedSigma(tofpar, debugtrack, tofSignal, collisionTimeRes)
 
     for i in range(1, histos["delta"].GetNbinsX()+1):
-        s = histos["delta"].ProjectionY(f"{i}", i, i)
+        s = histos["delta"].ProjectionY(f"{histos['delta'].GetName()}{i}_for_fit_slices", i, i)
         s.SetDirectory(0)
+        if s.GetEntries() < 10:
+            continue
         s.Fit(fgaus, "QNR")
         hparmu.SetBinContent(i, fgaus.GetParameter(1))
         hparsigma.SetBinContent(i, fgaus.GetParameter(2))
-
-    draw_nice_canvas("hp")
-    bins = [histos["delta"].GetXaxis().FindBin(
-        0.9), histos["delta"].GetXaxis().FindBin(1.1)]
-    slice1gev = histos["delta"].ProjectionY(f"{bins[0]}-{bins[1]}", *bins)
-    slice1gev.SetDirectory(0)
-    slice1gev.Fit(fgaus)
-    slice1gev.Draw()
-    pave = TPaveText(.68, .63, .91, .72, "brNDC")
-    pave.AddText("#mu = {:.3f}".format(fgaus.GetParameter(1)))
-    pave.AddText("#sigma = {:.3f}".format(fgaus.GetParameter(2)))
-    pave.Draw()
 
     draw_nice_canvas("fit")
     histos["delta"].Draw("COLZ")
     hparmu.Draw("same")
     hparsigma.Draw("same")
     if paramn is not None:
-        tofpar.LoadParamFromFile(paramn, "TOFResoParams")
+        if not os.path.isfile(paramn):
+            warning_msg("Can't find", paramn)
+        else:
+            tofpar.LoadParamFromFile(paramn, "TOFResoParams")
 
     fresoorig = TF1("paramorig", param, 0.1, 1.5, tofpar.size())
     for i in range(tofpar.size()):

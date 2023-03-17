@@ -1,0 +1,298 @@
+{
+    "bc-selection-task": {
+      "processRun2": "false",
+      "processRun3": "true"
+    },
+    "event-selection-task": {
+      "customDeltaBC": "300",
+      "isMC": "false",
+      "muonSelection": "0",
+      "processRun2": "false",
+      "processRun3": "true",
+      "syst": "PbPb"
+    },
+    "ft0-corrected-table": "",
+    "multiplicity-table": {
+      "doVertexZeq": "1",
+      "processRun2": "false",
+      "processRun3": "true"
+    },
+    "timestamp-task": {
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "isRun2MC": "false",
+      "orbit-reset-path": "CTP/Calib/OrbitReset",
+      "rct-path": "RCT/Info/RunInformation",
+      "verbose": "false"
+    },
+    "tof-event-time": {
+      "ccdb-timestamp": "-1",
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "ccdbPath": "Analysis/PID/TOF",
+      "maxMomentum": "2",
+      "minMomentum": "0.5",
+      "param-file": "",
+      "param-sigma": "TOFReso",
+      "processFT0": "false",
+      "processNoFT0": "true",
+      "processOnlyFT0": "false",
+      "processRun2": "false"
+    },
+    "tof-pid": {
+      "ccdb-timestamp": "-1",
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "ccdbPath": "Analysis/PID/TOF",
+      "enableTimeDependentResponse": "false",
+      "param-file": "",
+      "param-sigma": "TOFResoParams",
+      "passName": "unanchored",
+      "pid-al": "-1",
+      "pid-de": "-1",
+      "pid-el": "-1",
+      "pid-he": "-1",
+      "pid-ka": "-1",
+      "pid-mu": "-1",
+      "pid-pi": "-1",
+      "pid-pr": "-1",
+      "pid-tr": "-1",
+      "processWSlice": "true",
+      "processWoSlice": "false"
+    },
+    "tof-pid-beta": {
+      "tof-expreso": "80"
+    },
+    "tof-pid-beta-qa": {
+      "applyEvSel": "2",
+      "applyTrackCut": "true",
+      "logAxis": "0",
+      "maxP": "5",
+      "minP": "0.100000001",
+      "nBinsP": "400",
+      "splitTrdTracks": "true",
+      "tofBetaBins": {
+        "values": [
+          "4000",
+          "0",
+          "2"
+        ]
+      },
+      "tofMassBins": {
+        "values": [
+          "1000",
+          "0",
+          "3"
+        ]
+      }
+    },
+    "tof-pid-collision-time-qa": {
+      "evTimeBins": {
+        "values": [
+          "1000",
+          "-1000",
+          "1000"
+        ]
+      },
+      "evTimeDeltaBins": {
+        "values": [
+          "1000",
+          "-1000",
+          "1000"
+        ]
+      },
+      "evTimeResoBins": {
+        "values": [
+          "1000",
+          "0",
+          "1000"
+        ]
+      },
+      "logAxis": "0",
+      "maxPReso": "1.5",
+      "minPReso": "1.39999998",
+      "nBinsMultiplicity": "1000",
+      "pBins": {
+        "values": [
+          "200",
+          "0.10000000000000001",
+          "5"
+        ]
+      },
+      "rangeMultiplicity": "1000",
+      "tofSignalBins": {
+        "values": [
+          "5000",
+          "0",
+          "100000"
+        ]
+      }
+    },
+    "tof-pid-full": {
+      "ccdb-timestamp": "-1",
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "ccdbPath": "Analysis/PID/TOF",
+      "enableTimeDependentResponse": "false",
+      "param-file": "",
+      "param-sigma": "TOFResoParams",
+      "pid-al": "-1",
+      "pid-de": "-1",
+      "pid-el": "-1",
+      "pid-he": "-1",
+      "pid-ka": "-1",
+      "pid-mu": "-1",
+      "pid-pi": "-1",
+      "pid-pr": "-1",
+      "pid-tr": "-1",
+      "processWSlice": "true",
+      "processWoSlice": "false",
+      "processWoSliceDev": "false"
+    },
+    "tof-pid-qa": {
+      "applyEvSel": "2",
+      "applyRapidityCut": "false",
+      "applyTrackCut": "false",
+      "enableEvTimeSplitting": "false",
+      "logAxis": "0",
+      "maxDelta": "1000",
+      "maxExpSigma": "200",
+      "maxNSigma": "10",
+      "maxP": "5",
+      "minDelta": "-1000",
+      "minExpSigma": "0",
+      "minNSigma": "-10",
+      "minP": "0.100000001",
+      "nBinsDelta": "200",
+      "nBinsExpSigma": "200",
+      "nBinsNSigma": "200",
+      "nBinsP": "400",
+      "processAlpha": "false",
+      "processDeuteron": "false",
+      "processElectron": "false",
+      "processFullAlpha": "false",
+      "processFullDeuteron": "false",
+      "processFullElectron": "false",
+      "processFullHelium3": "false",
+      "processFullKaon": "false",
+      "processFullMuon": "false",
+      "processFullPion": "true",
+      "processFullProton": "false",
+      "processFullTriton": "false",
+      "processHelium3": "false",
+      "processKaon": "false",
+      "processMuon": "false",
+      "processPion": "false",
+      "processProton": "false",
+      "processTriton": "false"
+    },
+    "tof-signal": "",
+    "tof-sims-table-creator": {
+      "applyEvSel": "2",
+      "applyTrkSel": "1",
+      "fractionOfEvents": "1.10000002",
+      "keepTpcOnly": "false"
+    },
+    "tpc-pid": {
+      "autofetchNetworks": "true",
+      "ccdb-timestamp": "0",
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "ccdbPath": "Analysis/PID/TPC/Response",
+      "enableNetworkOptimizations": "true",
+      "networkPathCCDB": "Analysis/PID/TPC/ML",
+      "networkPathLocally": "network.onnx",
+      "networkSetNumThreads": "0",
+      "param-file": "",
+      "pid-al": "-1",
+      "pid-de": "-1",
+      "pid-el": "-1",
+      "pid-he": "-1",
+      "pid-ka": "-1",
+      "pid-mu": "-1",
+      "pid-pi": "-1",
+      "pid-pr": "-1",
+      "pid-tr": "-1",
+      "useNetworkCorrection": "false"
+    },
+    "tpc-pid-full": {
+      "autofetchNetworks": "true",
+      "ccdb-timestamp": "0",
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "ccdbPath": "Analysis/PID/TPC/Response",
+      "enableNetworkOptimizations": "true",
+      "networkPathCCDB": "Analysis/PID/TPC/ML",
+      "networkPathLocally": "network.onnx",
+      "networkSetNumThreads": "0",
+      "param-file": "",
+      "pid-al": "-1",
+      "pid-de": "-1",
+      "pid-el": "-1",
+      "pid-he": "-1",
+      "pid-ka": "-1",
+      "pid-mu": "-1",
+      "pid-pi": "-1",
+      "pid-pr": "-1",
+      "pid-tr": "-1",
+      "useNetworkCorrection": "false"
+    },
+    "tpc-pid-qa": {
+      "applyEvSel": "2",
+      "applyRapidityCut": "false",
+      "applyTrackCut": "false",
+      "logAxis": "1",
+      "maxDelta": "1000",
+      "maxExpSigma": "200",
+      "maxNSigma": "10",
+      "maxP": "20",
+      "minDelta": "-1000",
+      "minExpSigma": "0",
+      "minNSigma": "-10",
+      "minP": "0.00999999978",
+      "nBinsDelta": "500",
+      "nBinsExpSigma": "200",
+      "nBinsNSigma": "200",
+      "nBinsP": "3000",
+      "processAlpha": "false",
+      "processDeuteron": "false",
+      "processElectron": "false",
+      "processFullAlpha": "false",
+      "processFullDeuteron": "false",
+      "processFullElectron": "false",
+      "processFullHelium3": "false",
+      "processFullKaon": "true",
+      "processFullMuon": "false",
+      "processFullPion": "true",
+      "processFullProton": "true",
+      "processFullTriton": "false",
+      "processFullWithTOFAlpha": "false",
+      "processFullWithTOFDeuteron": "false",
+      "processFullWithTOFElectron": "false",
+      "processFullWithTOFHelium3": "false",
+      "processFullWithTOFKaon": "false",
+      "processFullWithTOFMuon": "false",
+      "processFullWithTOFPion": "false",
+      "processFullWithTOFProton": "false",
+      "processFullWithTOFTriton": "false",
+      "processHelium3": "false",
+      "processKaon": "false",
+      "processMuon": "false",
+      "processPion": "false",
+      "processProton": "false",
+      "processTriton": "false"
+    },
+    "track-propagation": {
+      "ccdb-url": "http://alice-ccdb.cern.ch",
+      "geoPath": "GLO/Config/GeometryAligned",
+      "grpmagPath": "GLO/Config/GRPMagField",
+      "lutPath": "GLO/Param/MatLUT",
+      "mVtxPath": "GLO/Calib/MeanVertex",
+      "minPropagationDistance": "83.0999985",
+      "processCovariance": "true",
+      "processStandard": "false"
+    },
+    "track-selection": {
+      "compatibilityIU": "false",
+      "etaMax": "0.800000012",
+      "etaMin": "-0.800000012",
+      "isRun3": "true",
+      "itsMatching": "1",
+      "ptMax": "1e+10",
+      "ptMin": "0.100000001"
+    }
+}

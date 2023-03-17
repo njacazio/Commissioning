@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 
-from ROOT import o2, TFile, TF1, gROOT, gInterpreter, TPaveText
+from ROOT import o2, TFile, TF1, gROOT, gInterpreter, TPaveText, TColor, gStyle
+import numpy as np
 
 
 gInterpreter.Declare("""
@@ -43,4 +44,34 @@ struct DebugTrack { // Track that mimics the O2 data structure
   }
 };
 """)
-from ROOT import DebugTrack
+if 1:
+    from ROOT import DebugTrack
+
+
+if 1:
+    NRGBs = 5
+    NCont = 256
+    stops = np.array([0.00, 0.30, 0.61, 0.84, 1.00])
+    red = np.array([0.00, 0.00, 0.57, 0.90, 0.51])
+    green = np.array([0.00, 0.65, 0.95, 0.20, 0.00])
+    blue = np.array([0.51, 0.55, 0.15, 0.00, 0.10])
+    TColor.CreateGradientColorTable(NRGBs,
+                                    stops, red, green, blue, NCont)
+    gStyle.SetNumberContours(NCont)
+    gStyle.SetPalette(55)
+
+gInterpreter.Declare("""
+    static constexpr float mMassZ = MassPionCharged;
+    static constexpr float mMassZSqared = mMassZ*mMassZ;
+    float parameters[5] = {0, 0, 0, 0, 0};
+    float GetExpectedSigma(const float mom, const float tofSignal, const float collisionTimeRes){
+        if (mom <= 0) {
+            return -999.f;
+        }
+        const float dpp = parameters[0] + parameters[1] * mom + parameters[2] * mMassZ / mom; // mean relative pt resolution;
+        const float sigma = dpp * tofSignal / (1. + mom * mom / (mMassZSqared));
+        return std::sqrt(sigma * sigma + parameters[3] * parameters[3] / mom / mom + parameters[4] * parameters[4] + collisionTimeRes * collisionTimeRes);
+    }
+  float ComputeExpectedTimePi(const float tofExpMom, const float length) { return length * sqrt((mMassZSqared) + (tofExpMom * tofExpMom)) / (kCSPEED * tofExpMom); }
+"""
+                     )
