@@ -2,8 +2,8 @@
 
 import numpy as np
 import argparse
-from ROOT import TFile, TChain, EnableImplicitMT, RDataFrame, gPad, TH1, TColor, TObjArray
-from ROOT.RDF import TH2DModel, TH1DModel, RSnapshotOptions
+from ROOT import TFile, TChain, EnableImplicitMT, RDataFrame, gPad, TH1, TColor, TObjArray, gROOT, gStyle, TGraph
+from ROOT.RDF import TH2DModel, TH1DModel
 from numpy import sqrt
 import sys
 import os
@@ -12,8 +12,21 @@ if 1:
     from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label
 
 
-def addDFToChain(fileName, chain):
-    f = TFile(fileName, "READ")
+if 1:
+    NRGBs = 5
+    NCont = 256
+    stops = np.array([0.00, 0.30, 0.61, 0.84, 1.00])
+    red = np.array([0.00, 0.00, 0.57, 0.90, 0.51])
+    green = np.array([0.00, 0.65, 0.95, 0.20, 0.00])
+    blue = np.array([0.51, 0.55, 0.15, 0.00, 0.10])
+    TColor.CreateGradientColorTable(NRGBs,
+                                    stops, red, green, blue, NCont)
+    gStyle.SetNumberContours(NCont)
+    gStyle.SetPalette(55)
+
+
+def addDFToChain(input_file_name, chain):
+    f = TFile(input_file_name, "READ")
     lk = f.GetListOfKeys()
     for i in lk:
         dfname = i.GetName()
@@ -27,7 +40,7 @@ def addDFToChain(fileName, chain):
                 break
         if not hasit:
             return
-        tname = "{}?#{}/O2deltatof".format(fileName, dfname)
+        tname = "{}?#{}/O2deltatof".format(input_file_name, dfname)
         chain.Add(tname)
 
 
@@ -133,41 +146,84 @@ def makehisto(input_dataframe,
     return h
 
 
-def main(fileName="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relval_cpu2/16/AnalysisResults_trees_TOFCALIB.root",
-         minP=0.6,
-         maxP=0.7,
-         maxfiles=20000):
-    print("Using file:", fileName)
+def pre_process(input_file_name,
+                maxfiles=-1,
+                minP=0.6,
+                maxP=0.7):
     chain = TChain()
-    if type(fileName) is list:
+    if type(input_file_name) is list:
         nfiles = 0
-        for f in fileName:
-            if nfiles > maxfiles:
+        for f in input_file_name:
+            if maxfiles >= 0 and nfiles > maxfiles:
                 break
             nfiles += 1
             addDFToChain(f, chain)
         print("Using a total of", nfiles, "files")
-    elif (fileName.endswith(".root")):
-        addDFToChain(fileName, chain)
-    elif (fileName.endswith(".txt")):
-        with open("fileName", "r") as f:
+    elif (input_file_name.endswith(".root")):
+        addDFToChain(input_file_name, chain)
+    elif (input_file_name.endswith(".txt")):
+        with open("input_file_name", "r") as f:
             for line in f:
                 addDFToChain(line, chain)
+    evtimeaxis = [1000, -2000, 2000]
+    multaxis = [40, 0, 40]
+    ptaxis = [100, 0, 5]
+    deltaaxis = [1000, -2000, 2000]
+
     df = RDataFrame(chain)
-    df = df.Filter(f"fP>{minP}")
-    df = df.Filter(f"fP<{maxP}")
     # df = df.Filter("fEta>0.3")
     # df = df.Filter("fEta<0.4")
     # df = df.Filter("fPhi>0.3")
     # df = df.Filter("fPhi<0.4")
     df = df.Filter("fTOFChi2<5")
     df = df.Filter("fTOFChi2>=0")
-    df = df.Define("TOF", "fDeltaTPi-fEvTimeTOF")
-    df = df.Define("T0AC", "fDeltaTPi-fEvTimeT0AC")
-    evtimeaxis = [1000, -2000, 2000]
-    multaxis = [40, 0, 40]
+    df = df.Define("DeltaPiTOF", "fDeltaTPi-fEvTimeTOF")
+    df = df.Define("DeltaPiT0AC", "fDeltaTPi-fEvTimeT0AC")
+    for i in ["El", "Mu", "Ka", "Pr"]:
+        df = df.Define(f"DeltaPi{i}", f"fDeltaTPi-fDeltaT{i}")
 
-    def fitmultslices(h):
+    makehisto(df, "fDoubleDelta", "fPt", deltaaxis, ptaxis, xt="#Delta#Delta (ps)", yt="#it{p}_{T} (GeV/#it{c})").SetTitle("#Delta#Delta vs pT")
+    for i in ["El", "Mu", "Ka", "Pr"]:
+        part = {"El": "e", "Mu": "#mu", "Ka": "K", "Pr": "p"}[i]
+        makehisto(df, "DeltaPi"+i, "fPt", deltaaxis, ptaxis).SetTitle("t_{exp}(#pi) - t_{exp}(%s)" % part)
+    df = df.Filter(f"fP>{minP}")
+    df = df.Filter(f"fP<{maxP}")
+
+    makehisto(df, "fEvTimeTOFMult", "fEvTimeT0AC", multaxis, evtimeaxis).SetTitle("T0AC ev. time")
+    makehisto(df, "fEvTimeTOFMult", "fEvTimeTOF", multaxis, evtimeaxis).SetTitle("TOF ev. time")
+    makehisto(df, "fEvTimeTOFMult", "fDoubleDelta", multaxis, deltaaxis, "TOF ev. mult.", "#Delta#Delta (ps)").SetTitle("#Delta#Delta")
+    makehisto(df, "fEvTimeTOFMult", "DeltaPiTOF", multaxis, deltaaxis, "TOF ev. mult.", "t-texpPi-t0 (ps)").SetTitle("T-Texp_{#pi}-t_{0}^{TOF}")
+    makehisto(df, "fEvTimeTOFMult", "DeltaPiT0AC", multaxis, deltaaxis, "TOF ev. mult.", "t-texpPi-t0 (ps)").SetTitle("T-Texp_{#pi}-t_{0}^{T0AC}")
+    makehisto(df, "fEvTimeT0AC", draw=True, xr=evtimeaxis)
+    makehisto(df, "fEvTimeTOF", draw=True, xr=evtimeaxis)
+    makehisto(df, "fEvTimeT0AC", "fEvTimeTOF", evtimeaxis, evtimeaxis, draw=True, extracut="fEvTimeTOFMult>0").SetTitle("T0AC ev. time vs TOF ev. time")
+
+
+def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relval_cpu2/16/AnalysisResults_trees_TOFCALIB.root",
+         minP=0.6,
+         maxP=0.7,
+         out_file_name="/tmp/TOFRESO.root"):
+    print("Using file:", input_file_name)
+    if type(input_file_name) is list and len(input_file_name) == 1 and out_file_name == input_file_name[0]:
+        f = TFile(out_file_name, "READ")
+        f.ls()
+        for i in f.GetListOfKeys():
+            print("Getting", i.GetName())
+            histograms[i.GetName()] = f.Get(i.GetName())
+            histograms[i.GetName()].SetDirectory(0)
+        f.Close()
+    else:
+        pre_process(input_file_name, minP=minP, maxP=maxP)
+
+    def drawhisto(hn, opt="COL"):
+        draw_nice_canvas(hn, replace=False)
+        histograms[hn].Draw(opt)
+
+    h_slices = {}
+
+    def fitmultslices(hn):
+        draw_nice_canvas(hn, replace=False)
+        h = histograms[hn]
         obj = TObjArray()
         h.FitSlicesY(0, 0, -1, 0, "QNR", obj)
         obj.At(1).SetTitle(f"{h.GetTitle()} #mu")
@@ -175,78 +231,96 @@ def main(fileName="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relval_cpu2/
         obj.At(1).SetLineColor(TColor.GetColor("#e41a1c"))
         obj.At(1).Draw("SAME")
         obj.At(2).Draw("SAME")
+        h_slices[hn] = obj
         return obj
 
-    makehisto(df, "fEvTimeT0AC", draw=True, xr=evtimeaxis)
-    hevtimevsmultT0AC = makehisto(df, "fEvTimeTOFMult", "fEvTimeT0AC", multaxis, evtimeaxis, draw=True)
-    hevtimevsmultT0AC.SetTitle("T0AC ev. time")
-    hslicesEvTimeT0AC = fitmultslices(hevtimevsmultT0AC)
+    for i in histograms:
+        if "fPt" in i:
+            continue
+        drawhisto(i)
+    drawhisto("fPt_vs_fDoubleDelta", opt="COL")
+    colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
+    # colors = ['#fbb4ae', '#b3cde3', '#ccebc5', '#decbe4']
+    leg = draw_nice_legend([0.74, 0.92], [0.74, 0.92])
+    exp_lines = []
+    for i in ["El", "Mu", "Ka", "Pr"]:
+        col = TColor.GetColor(colors.pop())
+        p = histograms["fPt_vs_DeltaPi"+i].ProfileX()
+        g = TGraph()
+        exp_lines.append(g)
+        g.SetTitle(p.GetTitle())
+        for j in range(1, p.GetNbinsX()+1):
+            if i == "El":
+                if p.GetXaxis().GetBinCenter(j) < -1000:
+                    continue
+                if p.GetXaxis().GetBinCenter(j) > -5:
+                    continue
+            elif i in ["Ka"]:
+                if p.GetXaxis().GetBinCenter(j) < 40:
+                    continue
+            elif i in ["Pr"]:
+                if p.GetXaxis().GetBinCenter(j) < 130:
+                    continue
+            g.SetPoint(g.GetN(), p.GetBinCenter(j), p.GetBinContent(j))
+        g.SetLineColor(col)
+        g.SetMarkerColor(col)
+        g.SetLineWidth(5)
+        g.Draw("lsame")
+        leg.AddEntry(g)
 
-    makehisto(df, "fEvTimeTOF", draw=True, xr=evtimeaxis)
-    hevtimevsmult = makehisto(df, "fEvTimeTOFMult", "fEvTimeTOF", multaxis, evtimeaxis, draw=True)
-    hevtimevsmult.SetTitle("TOF ev. time")
-    hslicesEvTime = fitmultslices(hevtimevsmult)
+    for i in histograms:
+        if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
+            continue
+        if "fPt" in i:
+            continue
+        if "vs" in i:
+            fitmultslices(i)
+    fitmultslices("fDoubleDelta_vs_fEvTimeTOFMult")
 
-    makehisto(df, "fEvTimeT0AC", "fEvTimeTOF", evtimeaxis, evtimeaxis, draw=True)
-
-    deltaaxis = [1000, -2000, 2000]
-    hDoulbleDelta = makehisto(df, "fEvTimeTOFMult", "fDoubleDelta", multaxis, deltaaxis, "TOF ev. mult.", "#Delta#Delta (ps)")
-    hDoulbleDelta.SetTitle("#Delta#Delta")
-    draw_nice_canvas("doubledelta")
-    hDoulbleDelta.Draw("COLZ")
-    hslicesDD = fitmultslices(hDoulbleDelta)
-    hslicesDD.At(2).Scale(1./sqrt(2))
-
-    hTOF = makehisto(df, "fEvTimeTOFMult", "TOF", multaxis, deltaaxis, "TOF ev. mult.", "t-texpPi-t0 (ps)")
-    hTOF.SetTitle("T-Texp_{#pi}-t_{0}^{TOF}")
-    draw_nice_canvas("tmentexp")
-    hTOF.Draw("COLZ")
-    hslicesTOF = fitmultslices(hTOF)
-
-    hT0AC = makehisto(df, "fEvTimeTOFMult", "T0AC", multaxis, deltaaxis, "TOF ev. mult.", "t-texpPi-t0 (ps)")
-    hT0AC.SetTitle("T-Texp_{#pi}-t_{0}^{T0AC}")
-    draw_nice_canvas("tmentexp")
-    hT0AC.Draw("COLZ")
-    hslicesT0AC = fitmultslices(hT0AC)
-
-    draw_nice_canvas("both")
-    hpdd = hDoulbleDelta.ProjectionY("hDoulbleDelta_proj")
-    hptof = hTOF.ProjectionY("hTOF_proj")
-    hpdd.SetLineColor(TColor.GetColor("#e41a1c"))
-    set_nice_frame(hpdd)
-    hpdd.Draw()
-    hptof.Draw("SAME")
-    leg = draw_nice_legend()
-    leg.AddEntry(hpdd)
-    leg.AddEntry(hptof)
+    # draw_nice_canvas("both")
+    # hpdd = hDoulbleDelta.ProjectionY("hDoulbleDelta_proj")
+    # hptof = hTOF.ProjectionY("hTOF_proj")
+    # hpdd.SetLineColor(TColor.GetColor("#e41a1c"))
+    # set_nice_frame(hpdd)
+    # hpdd.Draw()
+    # hptof.Draw("SAME")
+    # leg = draw_nice_legend()
+    # leg.AddEntry(hpdd)
+    # leg.AddEntry(hptof)
 
     draw_nice_frame(draw_nice_canvas("resolution"), [0, 40], [0, 200], "TOF ev. mult.", "#sigma (ps)")
-    hslices = [hslicesEvTime.At(2).DrawCopy("SAME"),
-               hslicesDD.At(2).DrawCopy("SAME"),
-               hslicesTOF.At(2).DrawCopy("SAME"),
-               hslicesT0AC.At(2).DrawCopy("SAME")]
     colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
-    for i in enumerate(hslices):
-        i[1].SetLineColor(TColor.GetColor(colors[i[0]]))
-        i[1].SetMarkerColor(TColor.GetColor(colors[i[0]]))
-        i[1].SetMarkerStyle(20)
+    colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00']
     leg = draw_nice_legend([0.64, 0.92], [0.57, 0.92])
-    for i in hslices:
-        leg.AddEntry(i)
-    draw_label(f"{minP:.2f} < #it{{p}} < {maxP:.2f} GeV/#it{{c}}", 0.2, 0.925, align=11)
+    for i in h_slices:
+        print("Drawing", i)
+        col = TColor.GetColor(colors.pop())
+        s = h_slices[i].At(2).DrawCopy("SAME")
+        s.Scale(1./sqrt(2))
+        s.SetLineColor(col)
+        s.SetMarkerColor(col)
+        s.SetMarkerStyle(20)
+        leg.AddEntry(s)
+    draw_label(f"{minP:.2f} < #it{{p}}_{{ref}} < {maxP:.2f} GeV/#it{{c}}", 0.2, 0.96, align=11)
     update_all_canvases()
-    input("Press enter to exit")
-    fout = TFile("/tmp/TOFRESO.root", "RECREATE")
-    fout.cd()
-    for i in [hevtimevsmult, hevtimevsmultT0AC, hDoulbleDelta, hTOF, hT0AC]:
-        i.Write()
 
-
-
+    if not gROOT.IsBatch():
+        input("Press enter to exit")
+    if input_file_name != out_file_name:
+        print("Writing output to", out_file_name)
+        fout = TFile(out_file_name, "RECREATE")
+        fout.cd()
+        for i in histograms:
+            print("Writing", i)
+            histograms[i].Write()
+        fout.Close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="Input file name", nargs="+")
+    parser.add_argument("--background", action="store_true", help="Background mode")
     args = parser.parse_args()
+    if args.background:
+        gROOT.SetBatch(True)
     main(args.filename)
