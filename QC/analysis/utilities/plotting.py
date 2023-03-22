@@ -6,6 +6,17 @@ nice_canvases = {}
 
 
 def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, title=None, replace=True):
+    if 1:
+        try:
+            from screeninfo import get_monitors
+            factor = get_monitors()[0].width / 1920
+            x *= factor
+            y *= factor
+            x = int(x)
+            y = int(y)
+        except ImportError:
+            print("screeninfo not installed, using default screen size. To optimize install screeninfo `pip install --user screeninfo`")
+
     global nice_canvases
     if not replace and name in nice_canvases:
         c = nice_canvases[name]
@@ -33,12 +44,13 @@ def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, titl
 labels_drawn = []
 
 
-def draw_label(label, x=0.55, y=0.96, size=0.035, align=21):
+def draw_label(label, x=0.55, y=0.96, size=0.035, align=21, ndc=True):
     global labels_drawn
     while label.startswith(" ") or label.endswith(" "):
         label = label.strip()
     l = TLatex(x, y, label)
-    l.SetNDC()
+    if ndc:
+        l.SetNDC()
     l.Draw()
     l.SetTextAlign(align)
     l.SetTextFont(42)
@@ -100,6 +112,7 @@ def set_nice_frame(h):
         set_nice_frame(h.GetPassedHistogram())
         return
     h.GetYaxis().SetTitleSize(0.04)
+    h.GetYaxis().SetTitleOffset(1.6)
     h.GetXaxis().SetTitleSize(0.04)
     h.GetXaxis().SetTitleOffset(1.25)
 
