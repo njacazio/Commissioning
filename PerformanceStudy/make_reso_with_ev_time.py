@@ -5,11 +5,13 @@ import argparse
 from ROOT import TFile, TChain, EnableImplicitMT, RDataFrame, gPad, TH1, TColor, TObjArray, gROOT, gStyle, TGraph, TF1, TGraphErrors
 from ROOT.RDF import TH3DModel, TH2DModel, TH1DModel
 from numpy import sqrt
+import time
 import sys
 import os
+import tqdm
 sys.path.append(os.path.abspath("../QC/analysis/AO2D/"))
 if 1:
-    from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label
+    from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label, draw_diagonal
 
 
 if 1:
@@ -45,7 +47,7 @@ def addDFToChain(input_file_name, chain):
             return
         tname = "{}?#{}/O2deltatof".format(input_file_name, dfname)
         chain.Add(tname)
-
+    f.Close()
 
 EnableImplicitMT(7)
 
@@ -65,12 +67,9 @@ def makehisto(input_dataframe,
               yt=None,
               extracut=None,
               logx=False,
-              draw=False,
-              draw_logy=False,
               extracut_to_name=True,
               title=None,
-              tag=None,
-              opt="COL"):
+              tag=None):
     n = f"{x}"
     if y is not None:
         n = f"{y}_vs_{x}"
@@ -83,6 +82,7 @@ def makehisto(input_dataframe,
     if tag is not None:
         n = f"{n}_{tag}"
     titles = {"fDoubleDelta": "#Delta#Deltat (ps)",
+              "fEta": "#it{#eta}",
               "fP": "#it{p} (GeV/#it{c})",
               "fPt": "#it{p}_{T} (GeV/#it{c})",
               "fEvTimeTOFMult": "TOF ev. mult.",
@@ -103,7 +103,7 @@ def makehisto(input_dataframe,
     if n in histograms:
         add_mode = True
     else:
-        print("Making histogram", n, "in", xr, "vs", yr, "with xt =", xt, "and yt =", yt, "logx", logx)
+        print("Booking histogram", n, "in", xr, "vs", yr, "with xt =", xt, "and yt =", yt, "logx", logx)
 
     df = input_dataframe
     if extracut is not None:
@@ -151,6 +151,8 @@ def makehisto(input_dataframe,
             else:
                 if title is None:
                     title = n
+                if yt is None:
+                    yt = "Counts"
                 title = f"{title};{xt};{yt}"
                 model = TH1DModel(x, title, *xr)
             h = df.Histo1D(model, x)
@@ -168,77 +170,17 @@ def makehisto(input_dataframe,
     if n not in histogram_names:
         histogram_names.append(n)
 
-    if draw:
-        draw_nice_canvas(n, logy=draw_logy)
-        h.Draw(opt)
-        gPad.Modified()
-        gPad.Update()
-
-
-def pre_process(input_file_name,
-                maxfiles=-50,
-                minP=0.6,
-                maxP=0.7):
-    chain = TChain()
-    if type(input_file_name) is list:
-        nfiles = 0
-        for f in input_file_name:
-            if maxfiles >= 0 and nfiles > maxfiles:
-                break
-            nfiles += 1
-            addDFToChain(f, chain)
-        print("Using a total of", nfiles, "files")
-    elif (input_file_name.endswith(".root")):
-        addDFToChain(input_file_name, chain)
-    elif (input_file_name.endswith(".txt")):
-        with open("input_file_name", "r") as f:
-            for line in f:
-                addDFToChain(line, chain)
-    evtimeaxis = [1000, -2000, 2000]
-    multaxis = [40, 0, 40]
-    ptaxis = [1000, 0, 5]
-    deltaaxis = [100, -2000, 2000]
-
-    df = RDataFrame(chain)
-    # df = df.Filter("fEta>0.3")
-    # df = df.Filter("fEta<0.4")
-    # df = df.Filter("fPhi>0.3")
-    # df = df.Filter("fPhi<0.4")
-    df = df.Filter("fTOFChi2<5")
-    df = df.Filter("fTOFChi2>=0")
-    df = df.Define("DeltaPiTOF", "fDeltaTPi-fEvTimeTOF")
-    df = df.Define("DeltaPiT0AC", "fDeltaTPi-fEvTimeT0AC")
-    for i in ["El", "Mu", "Ka", "Pr"]:
-        df = df.Define(f"DeltaPi{i}", f"fDeltaTPi-fDeltaT{i}")
-
-    makehisto(df.Filter("fP > 0.6").Filter("fP < 0.7"), "fEvTimeTOFMult", "fDoubleDelta", multaxis, deltaaxis, tag="reference", title="#Delta#Deltat ref.")
-    makehisto(df, "fEta", xr=[100, -1, 1])
-    makehisto(df, "fDoubleDelta", "fP", deltaaxis, ptaxis, title="#Delta#Deltat vs p")
-    makehisto(df, "fDoubleDelta", "fPt", deltaaxis, ptaxis, title="#Delta#Deltat vs pT")
-    for i in ["El", "Mu", "Ka", "Pr"]:
-        part = {"El": "e", "Mu": "#mu", "Ka": "K", "Pr": "p"}[i]
-        makehisto(df, "DeltaPi"+i, "fPt", deltaaxis, ptaxis, xt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
-        makehisto(df, "DeltaPi"+i, "fP", deltaaxis, ptaxis, xt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
-    df = df.Filter(f"fPt>{minP}")
-    df = df.Filter(f"fPt<{maxP}")
-
-    makehisto(df, "fEvTimeTOFMult", "fEvTimeT0AC", multaxis, evtimeaxis, title="T0AC ev. time")
-    makehisto(df, "fEvTimeTOFMult", "fEvTimeTOF", multaxis, evtimeaxis, title="TOF ev. time")
-    makehisto(df, "fEvTimeTOFMult", "fDoubleDelta", multaxis, deltaaxis, title="#Delta#Deltat")
-    makehisto(df, "fEvTimeTOFMult", "DeltaPiTOF", multaxis, deltaaxis, yt="t-t_{exp}(#pi)-t_{0}^{TOF} (ps)", title="t-t_{exp}(#pi)-t_{0}^{TOF}")
-    makehisto(df, "fEvTimeTOFMult", "DeltaPiT0AC", multaxis, deltaaxis, yt="t-t_{exp}(#pi)-t_{0}^{T0AC} (ps)", title="t-t_{exp}(#pi)-t_{0}^{T0AC}")
-    makehisto(df, "fEvTimeT0AC", draw=True, xr=evtimeaxis)
-    makehisto(df, "fEvTimeTOF", draw=True, xr=evtimeaxis)
-    makehisto(df, "fEvTimeT0AC", "fEvTimeTOF", evtimeaxis, evtimeaxis, draw=True, extracut="fEvTimeTOFMult>0", title="T0AC ev. time vs TOF ev. time")
-
 
 def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relval_cpu2/16/AnalysisResults_trees_TOFCALIB.root",
-         minP=0.6,
-         maxP=0.7,
+         minPt=0.6,
+         maxPt=0.7,
+         reference_momentum=[0.6, 0.7],
          replay_mode=False,
+         max_files=-1,
          out_file_name="/tmp/TOFRESO.root"):
     print("Using file:", input_file_name)
-    out_file_name = out_file_name.replace(".root", f"_{minP:.2f}_{maxP:.2f}.root")
+
+    out_file_name = out_file_name.replace(".root", f"_{minPt:.2f}_{maxPt:.2f}.root")
     if replay_mode is True:
         f = TFile(out_file_name, "READ")
         f.ls()
@@ -246,9 +188,69 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             print("Getting", i.GetName())
             histograms[i.GetName()] = f.Get(i.GetName())
             histograms[i.GetName()].SetDirectory(0)
+            histogram_names.append(i.GetName())
         f.Close()
     else:
-        pre_process(input_file_name, minP=minP, maxP=maxP)
+        print("Running pre-processing")
+        start = time.time()
+        chain = TChain()
+        if type(input_file_name) is list:
+            nfiles = 0
+            for f in tqdm.tqdm(input_file_name, bar_format='Looping on input files {l_bar}{bar:10}{r_bar}{bar:-10b}'):
+                if max_files >= 0 and nfiles >= max_files:
+                    print("Reached max number of files", max_files)
+                    break
+                nfiles += 1
+                addDFToChain(f, chain)
+            print("Using a total of", nfiles, "files")
+        elif (input_file_name.endswith(".root")):
+            addDFToChain(input_file_name, chain)
+        elif (input_file_name.endswith(".txt")):
+            with open("input_file_name", "r") as f:
+                for line in f:
+                    addDFToChain(line, chain)
+        evtimeaxis = [1000, -2000, 2000]
+        multaxis = [40, 0, 40]
+        ptaxis = [10000, 0, 100]
+        deltaaxis = [100, -2000, 2000]
+
+        df = RDataFrame(chain)
+        # df = df.Filter("fEta>0.3")
+        # df = df.Filter("fEta<0.4")
+        # df = df.Filter("fPhi>0.3")
+        # df = df.Filter("fPhi<0.4")
+        df = df.Filter("fTOFChi2<5")
+        df = df.Filter("fTOFChi2>=0")
+        df = df.Define("DeltaPiTOF", "fDeltaTPi-fEvTimeTOF")
+        df = df.Define("DeltaPiT0AC", "fDeltaTPi-fEvTimeT0AC")
+        for i in ["El", "Mu", "Ka", "Pr"]:
+            df = df.Define(f"DeltaPi{i}", f"fDeltaTPi-fDeltaT{i}")
+        if reference_momentum[0] >= reference_momentum[1]:
+            raise ValueError("Reference momentum range is not valid", reference_momentum)
+
+        makehisto(df.Filter(f"fP > {reference_momentum[0]}").Filter(f"fP < {reference_momentum[1]}"),
+                  "fEvTimeTOFMult", "fDoubleDelta", multaxis, deltaaxis,
+                  tag="reference", title=f"#Delta#Deltat ref. {reference_momentum[0]:.1f} < #it{{p}} < {reference_momentum[1]:.1f} GeV/#it{{c}}")
+        makehisto(df, "fEta", xr=[100, -1, 1])
+        makehisto(df, "fDoubleDelta", "fP", deltaaxis, ptaxis, title="#Delta#Deltat vs p")
+        makehisto(df, "fDoubleDelta", "fPt", deltaaxis, ptaxis, title="#Delta#Deltat vs pT")
+        for i in ["El", "Mu", "Ka", "Pr"]:
+            part = {"El": "e", "Mu": "#mu", "Ka": "K", "Pr": "p"}[i]
+            makehisto(df, "DeltaPi"+i, "fPt", deltaaxis, ptaxis, xt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
+            makehisto(df, "DeltaPi"+i, "fP", deltaaxis, ptaxis, xt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
+        df = df.Filter(f"fPt>{minPt}")
+        df = df.Filter(f"fPt<{maxPt}")
+
+        makehisto(df, "fEvTimeTOFMult", "fEvTimeT0AC", multaxis, evtimeaxis, title="T0AC ev. time")
+        makehisto(df, "fEvTimeTOFMult", "fEvTimeTOF", multaxis, evtimeaxis, title="TOF ev. time")
+        makehisto(df, "fEvTimeTOFMult", "fDoubleDelta", multaxis, deltaaxis, title="#Delta#Deltat")
+        makehisto(df, "fEvTimeTOFMult", "DeltaPiTOF", multaxis, deltaaxis, yt="t-t_{exp}(#pi)-t_{0}^{TOF} (ps)", title="t-t_{exp}(#pi)-t_{0}^{TOF}")
+        makehisto(df, "fEvTimeTOFMult", "DeltaPiT0AC", multaxis, deltaaxis, yt="t-t_{exp}(#pi)-t_{0}^{T0AC} (ps)", title="t-t_{exp}(#pi)-t_{0}^{T0AC}")
+        makehisto(df, "fEvTimeT0AC", xr=evtimeaxis)
+        makehisto(df, "fEvTimeTOF", xr=evtimeaxis)
+        makehisto(df, "fEvTimeT0AC", "fEvTimeTOF", evtimeaxis, evtimeaxis, extracut="fEvTimeTOFMult>0", title="T0AC ev. time vs TOF ev. time")
+        makehisto(df, "fEvTimeT0AC", "fEvTimeTOF", evtimeaxis, evtimeaxis, extracut="fEvTimeTOFMult>15", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 15)")
+        print("pre-processing done, it took", time.time()-start, "seconds")
 
     drawn_histos = []
 
@@ -263,67 +265,68 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         histograms[hn].Draw(opt)
         return histograms[hn]
 
-    for i in histograms:
-        print("Drawing histogram", i)
-        if "fPt_vs" in i:
+    print("List of histograms:")
+    for i in histogram_names:
+        print("\t", i)
+
+    for i in histogram_names:
+        if i in ["fPt_vs_DeltaPiEl", "fPt_vs_DeltaPiMu", "fPt_vs_DeltaPiKa", "fPt_vs_DeltaPiPr"]:
             continue
-        if "fP_vs" in i:
+        if i in ["fP_vs_DeltaPiEl", "fP_vs_DeltaPiMu", "fP_vs_DeltaPiKa", "fP_vs_DeltaPiPr"]:
             continue
+        start = time.time()
+        print("+ Drawing histogram", i)
         hd = drawhisto(i)
         if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
-            g = TGraph()
-            g.SetName(i+"_diagonal")
-            g.SetPoint(0, hd.GetXaxis().GetBinLowEdge(1), hd.GetYaxis().GetBinLowEdge(1))
-            g.SetPoint(1, hd.GetXaxis().GetBinUpEdge(hd.GetXaxis().GetNbins()), hd.GetYaxis().GetBinUpEdge(hd.GetYaxis().GetNbins()))
-            g.SetLineStyle(7)
-            g.Draw("sameL")
-            hd.GetListOfFunctions().Add(g)
+            draw_diagonal(hd)
+            draw_label(f"Correlation: {hd.GetCorrelationFactor():.2f}", 0.3, 0.85, 0.03)
+            if ">" in i:
+                draw_label("TOF ev. mult > "+i.split(">")[1], 0.3, 0.8, 0.03)
 
-    reference_histo = histograms["fDoubleDelta_vs_fEvTimeTOFMult_reference"].ProjectionY("reference_histo")
+        print("+ took", time.time()-start, "seconds")
+
+    # Drawing reference histogram
     draw_nice_canvas("reference_histo")
+    reference_histo = histograms["fDoubleDelta_vs_fEvTimeTOFMult_reference"].ProjectionY("reference_histo")
     reference_histo.Draw()
     reference_gaus = TF1("reference_gaus", "gaus", -1000, 1000)
     reference_histo.Fit(reference_gaus, "QNRWW")
     reference_gaus.Draw("same")
-    draw_label(f"#mu = {reference_gaus.GetParameter(1):.3f}", 0.3, 0.8)
-    draw_label(f"#sigma = {reference_gaus.GetParameter(2):.3f}", 0.3, 0.75)
+    draw_label(reference_histo.GetTitle(), 0.35, 0.89, 0.03)
+    draw_label(f"Gaussian fit:", 0.3, 0.84)
+    draw_label(f"#mu = {reference_gaus.GetParameter(1):.3f} (ps)", 0.3, 0.79)
+    draw_label(f"#sigma = {reference_gaus.GetParameter(2):.3f} (ps)", 0.3, 0.74)
 
     reso_vs_p = TGraphErrors()
     reso_vs_p.GetXaxis().SetTitle("#it{p} (GeV/#it{c})")
     reso_vs_pt = TGraphErrors()
     reso_vs_pt.GetXaxis().SetTitle("#it{p}_{T} (GeV/#it{c})")
+    reso_graphs = {"fP": reso_vs_p, "fPt": reso_vs_pt}
     stopP = 20.3
     startP = 10.3
     stopP = 1.3
     startP = 0.3
     pwidth = 0.1
-    for i in range(int((stopP-startP)/pwidth)):
-        xmin = startP + i*pwidth
-        xmax = xmin + pwidth
-        reso_histo_p = histograms["fP_vs_fDoubleDelta"]
-        reso_histo_pt = histograms["fPt_vs_fDoubleDelta"]
-        reso_histo_p = reso_histo_p.ProjectionX(f"reso_histo_p_{xmin}_{xmax}", reso_histo_p.GetYaxis().FindBin(xmin+0.00001), reso_histo_p.GetYaxis().FindBin(xmax-0.0001))
-        reso_histo_pt = reso_histo_pt.ProjectionX(f"reso_histo_pt_{xmin}_{xmax}", reso_histo_pt.GetYaxis().FindBin(xmin+0.00001), reso_histo_pt.GetYaxis().FindBin(xmax-0.0001))
-        reso_gaus_p = TF1("reso_gaus_p", "gaus", -1000, 1000)
-        reso_gaus_pt = TF1("reso_gaus_pt", "gaus", -1000, 1000)
-        opt = "QNRWW"
-        reso_histo_p.Fit(reso_gaus_p, opt)
-        reso_histo_pt.Fit(reso_gaus_pt, opt)
-        reso_vs_p.SetPoint(reso_vs_p.GetN(), (xmin+xmax)/2, sqrt(reso_gaus_p.GetParameter(2)**2 - reference_gaus.GetParameter(2)**2/2))
-        reso_vs_p.SetPointError(reso_vs_p.GetN()-1, (xmax-xmin)/2, reso_gaus_p.GetParError(2))
-        reso_vs_pt.SetPoint(reso_vs_pt.GetN(), (xmin+xmax)/2, sqrt(reso_gaus_pt.GetParameter(2)**2 - reference_gaus.GetParameter(2)**2/2))
-        reso_vs_pt.SetPointError(reso_vs_pt.GetN()-1, (xmax-xmin)/2, reso_gaus_pt.GetParError(2))
-        if 0:
-            draw_nice_canvas(f"reso_histo_p{i}")
-            reso_histo_p.Draw()
-            draw_label(f"#mu = {reso_gaus_p.GetParameter(1):.3f}", 0.3, 0.8)
-            draw_label(f"#sigma = {reso_gaus_p.GetParameter(2):.3f}", 0.3, 0.75)
+    for j in ["fP", "fPt"]:
+        r = reso_graphs[j]
+        r.GetYaxis().SetTitle("#sigma "+histograms[j+"_vs_fDoubleDelta"].GetXaxis().GetTitle())
+        for i in range(int((stopP-startP)/pwidth)):
+            xmin = startP + i*pwidth
+            xmax = xmin + pwidth
+            reso_histo = histograms[j+"_vs_fDoubleDelta"]
+            reso_histo = reso_histo.ProjectionX(f"reso_histo_{j}_{xmin}_{xmax}", reso_histo.GetYaxis().FindBin(xmin+0.00001), reso_histo.GetYaxis().FindBin(xmax-0.0001))
+            reso_gaus = TF1("reso_gaus_"+j, "gaus", -1000, 1000)
+            reso_histo.Fit(reso_gaus, "QNRWW")
+            r.SetPoint(r.GetN(), (xmin+xmax)/2, sqrt(reso_gaus.GetParameter(2)**2 - reference_gaus.GetParameter(2)**2/2))
+            r.SetPointError(r.GetN()-1, (xmax-xmin)/2, reso_gaus.GetParError(2))
+            if 0:
+                draw_nice_canvas(f"reso_histo_vs_{j}_{i}")
+                reso_histo.Draw()
+                draw_label(f"#mu = {reso_gaus.GetParameter(1):.3f}", 0.3, 0.8)
+                draw_label(f"#sigma = {reso_gaus.GetParameter(2):.3f}", 0.3, 0.75)
 
-    draw_nice_canvas("reso_histo_vs_p")
-    reso_vs_p.Draw("AP")
-    draw_nice_canvas("reso_histo_vs_pt")
-    reso_vs_pt.Draw("AP")
-
+        draw_nice_canvas("reso_histo_vs_"+j)
+        r.Draw("AP")
 
     if 1:
         # Drawing Double delta vs Pt and P
@@ -470,7 +473,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             leg.AddEntry(s)
 
         drawn_slices["fDoubleDelta_vs_fEvTimeTOFMult_reference"].Scale(1./sqrt(2))
-        draw_label(f"{minP:.2f} < #it{{p}}_{{T}} < {maxP:.2f} GeV/#it{{c}}", 0.2, 0.97, align=11)
+        draw_label(f"{minPt:.2f} < #it{{p}}_{{T}} < {maxPt:.2f} GeV/#it{{c}}", 0.2, 0.97, align=11)
 
         if 1:
             # fasympt = TF1("fasympt", "[0]/x^[2]+[1]", 0, 40)
@@ -503,10 +506,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="Input file name", nargs="+")
     parser.add_argument("--background", "-b", action="store_true", help="Background mode")
-    parser.add_argument("--minp", default=0.3, type=float, help="Minimum momentum")
-    parser.add_argument("--maxp", default=0.4, type=float, help="Maximumt momentum")
+    parser.add_argument("--minpt", default=0.3, type=float, help="Minimum transverse momentum")
+    parser.add_argument("--maxpt", default=0.4, type=float, help="Maximum transverse momentum")
+    parser.add_argument("--maxfiles", default=-1, type=int, help="Maximum number of files")
     parser.add_argument("--replay_mode", "--replay", action="store_true", help="Replay previous output")
     args = parser.parse_args()
     if args.background:
         gROOT.SetBatch(True)
-    main(args.filename, minP=args.minp, maxP=args.maxp, replay_mode=args.replay_mode)
+    main(args.filename, minPt=args.minpt, maxPt=args.maxpt, replay_mode=args.replay_mode, max_files=args.maxfiles)
