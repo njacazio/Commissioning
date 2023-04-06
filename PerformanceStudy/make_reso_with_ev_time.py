@@ -2,7 +2,7 @@
 
 import numpy as np
 import argparse
-from ROOT import TFile, TChain, EnableImplicitMT, RDataFrame, gPad, TH1, TColor, TObjArray, gROOT, gStyle, TGraph, TF1, TGraphErrors
+from ROOT import TFile, TChain, EnableImplicitMT, RDataFrame, gPad, TH1, TColor, TObjArray, gROOT, gStyle, TGraph, TF1, TGraphErrors, TH2F
 from ROOT.RDF import TH3DModel, TH2DModel, TH1DModel
 from numpy import sqrt
 import time
@@ -37,7 +37,13 @@ def addDFToChain(input_file_name, chain):
         dfname = i.GetName()
         if "DF_" not in dfname:
             continue
-        tree = f.Get(f"{dfname}/O2deltatof").GetListOfBranches()
+        treename = f"{dfname}/O2deltatof"
+        tree = f.Get(treename)
+        if not tree:
+            print("Waring: no tree found for", treename, "in", input_file_name)
+            f.Get(dfname).ls()
+            continue
+        tree = tree.GetListOfBranches()
         hasit = False
         for i in tree:
             if i.GetName() == "fDeltaTMu":
@@ -84,8 +90,8 @@ def makehisto(input_dataframe,
               "fP": "#it{p} (GeV/#it{c})",
               "fPt": "#it{p}_{T} (GeV/#it{c})",
               "fEvTimeTOFMult": "TOF ev. mult.",
-              "fEvTimeTOF": "t_{0}^{TOF}",
-              "fEvTimeT0AC": "t_{0}^{T0AC}"}
+              "fEvTimeTOF": "t_{ev}^{TOF}",
+              "fEvTimeT0AC": "t_{ev}^{FT0}"}
     if xt is None:
         if x in titles:
             xt = titles[x]
@@ -175,7 +181,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
          reference_momentum=[0.6, 0.7],
          replay_mode=False,
          max_files=-1,
-         out_file_name="/tmp/TOFRESOHighPt.root"):
+         label=None,
+         out_file_name="/tmp/TOFRESO.root"):
     print("Using file:", input_file_name)
 
     out_file_name = out_file_name.replace(".root", f"_{minPt:.2f}_{maxPt:.2f}.root")
@@ -250,19 +257,34 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df, x="fEvTimeTOFMult", y="fEvTimeT0AC", xr=multaxis, yr=evtimeaxis, title="T0AC ev. time")
         makehisto(df, x="fEvTimeTOFMult", y="fEvTimeTOF", xr=multaxis, yr=evtimeaxis, title="TOF ev. time")
         makehisto(df, x="fEvTimeTOFMult", y="fDoubleDelta", xr=multaxis, yr=deltaaxis, title="#Delta#Deltat")
-        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiTOF", xr=multaxis, yr=deltaaxis, yt="t-t_{exp}(#pi)-t_{0}^{TOF} (ps)", title="t-t_{exp}(#pi)-t_{0}^{TOF}")
-        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiT0AC", xr=multaxis, yr=deltaaxis, yt="t-t_{exp}(#pi)-t_{0}^{T0AC} (ps)", title="t-t_{exp}(#pi)-t_{0}^{T0AC}")
+        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiTOF", xr=multaxis, yr=deltaaxis, yt="t-t_{exp}(#pi)-t_{ev}^{TOF} (ps)", title="t-t_{exp}(#pi)-t_{ev}^{TOF}")
+        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiT0AC", xr=multaxis, yr=deltaaxis, yt="t-t_{exp}(#pi)-t_{ev}^{FT0} (ps)", title="t-t_{exp}(#pi)-t_{ev}^{FT0}")
         makehisto(df, x="fEvTimeT0AC", xr=evtimeaxis)
         makehisto(df, x="fEvTimeTOF", xr=evtimeaxis)
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>0", title="T0AC ev. time vs TOF ev. time")
+        makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>5", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 5)")
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>15", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 15)")
-        makehisto(df, x="fEvTimeTOFMult", y="EvTimeReso", xr=multaxis, yr=evtimediffaxis, yt="t_{0}^{T0AC} - t_{0}^{TOF}", title="T0AC ev. time - TOF ev. time")
+        makehisto(df, x="fEvTimeTOFMult", y="EvTimeReso", xr=multaxis, yr=evtimediffaxis, yt="t_{ev}^{FT0} - t_{ev}^{TOF}", title="T0AC ev. time - TOF ev. time")
 
         print("pre-processing done, it took", time.time()-start, "seconds")
 
     drawn_histos = []
 
-    def drawhisto(hn, opt="COL"):
+    drawn_graphs = []
+
+    def graph(name, title=None):
+        g = TGraph()
+        drawn_graphs.append(g)
+        g.SetName(name)
+        if title is not None:
+            g.SetTitle(title)
+        return g
+
+    def draw_plot_label():
+        if label is not None and label != "":
+            draw_label(label, 0.95, 0.96, 0.03, align=31)
+
+    def drawhisto(hn, opt="COL", xrange=None, yrange=None, transpose=False):
         draw_nice_canvas(hn, replace=False)
         if hn in drawn_histos:
             return histograms[hn]
@@ -270,7 +292,41 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         histograms[hn].SetBit(TH1.kNoStats)
         histograms[hn].SetBit(TH1.kNoTitle)
         set_nice_frame(histograms[hn])
-        histograms[hn].Draw(opt)
+        if transpose:
+            if "TH2" not in histograms[hn].ClassName():
+                raise ValueError("Cannot transpose something that is not a TH2")
+            xaxis = histograms[hn].GetXaxis()
+            yaxis = histograms[hn].GetYaxis()
+            htmp = TH2F(f"transpose{histograms[hn].GetName()}",
+                        histograms[hn].GetTitle(),
+                        yaxis.GetNbins(), yaxis.GetBinLowEdge(1), yaxis.GetBinUpEdge(yaxis.GetNbins()),
+                        xaxis.GetNbins(), xaxis.GetBinLowEdge(1), xaxis.GetBinUpEdge(xaxis.GetNbins()))
+            htmp.GetXaxis().SetTitle(yaxis.GetTitle())
+            htmp.GetYaxis().SetTitle(xaxis.GetTitle())
+            for ix in range(1, xaxis.GetNbins()+1):
+                # xb = htmp.GetYaxis().FindBin(xaxis.GetBinCenter(ix))
+                for iy in range(1, yaxis.GetNbins()+1):
+                    # yb = htmp.GetXaxis().FindBin(yaxis.GetBinCenter(iy))
+                    # print(ix, iy, "goes to", xb, yb)
+                    htmp.SetBinContent(iy, ix, histograms[hn].GetBinContent(ix, iy))
+                    # htmp.SetBinContent(xb, yb,
+                    #                    histograms[hn].GetBinContent(ix, iy) + htmp.GetBinContent(xb, yb))
+            histograms[hn] = htmp.DrawCopy(opt)
+            histograms[hn].SetDirectory(0)
+        else:
+            histograms[hn].Draw(opt)
+        if xrange is not None:
+            if transpose:
+                histograms[hn].GetYaxis().SetRangeUser(*xrange)
+            else:
+                histograms[hn].GetXaxis().SetRangeUser(*xrange)
+        if yrange is not None:
+            if transpose:
+                histograms[hn].GetXaxis().SetRangeUser(*yrange)
+            else:
+                histograms[hn].GetYaxis().SetRangeUser(*yrange)
+
+        draw_plot_label()
         return histograms[hn]
 
     print("List of histograms:")
@@ -283,6 +339,9 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 continue
         if 1:
             if i in ["DeltaPiEl_vs_fP", "DeltaPiMu_vs_fP", "DeltaPiKa_vs_fP", "DeltaPiPr_vs_fP"]:
+                continue
+        if 1:
+            if i in ["fDoubleDelta_vs_fP", "fDoubleDelta_vs_fPt"]:
                 continue
         start = time.time()
         print("+ Drawing histogram", i)
@@ -306,6 +365,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
     draw_label(f"Gaussian fit:", 0.3, 0.84)
     draw_label(f"#mu = {reference_gaus.GetParameter(1):.3f} (ps)", 0.3, 0.79)
     draw_label(f"#sigma = {reference_gaus.GetParameter(2):.3f} (ps)", 0.3, 0.74)
+    draw_plot_label()
 
     reso_vs_p = TGraphErrors()
     reso_vs_p.GetXaxis().SetTitle("#it{p} (GeV/#it{c})")
@@ -338,52 +398,63 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
 
         draw_nice_canvas("reso_histo_vs_"+j)
         r.Draw("AP")
+        draw_plot_label()
 
     if 1:
         # Drawing Double delta vs Pt and P
-        for k in ["fPt", "fP"]:
-            hd = drawhisto("fDoubleDelta_vs_"+k, opt="COL")
+        # for k in ["fPt", "fP"]:
+        for k in ["fP"]:
+            hd = drawhisto("fDoubleDelta_vs_"+k, opt="COL", xrange=[0, 5], transpose=True)
             colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
             leg = draw_nice_legend([0.74, 0.92], [0.74, 0.92])
-            for i in ["El", "Mu", "Ka", "Pr"]:
-                col = TColor.GetColor(colors.pop())
-                particle_profile = histograms["DeltaPi"+i+"_vs_"+k].ProfileX()
-                particle_profile.SetName("profile_"+particle_profile.GetName())
-                if 1:
-                    g = TGraph()
-                    g.SetName("g"+particle_profile.GetName())
-                    hd.GetListOfFunctions().Add(g)
-                    g.SetTitle(particle_profile.GetTitle())
-                    for j in range(1, particle_profile.GetNbinsX()+1):
-                        if 0:
-                            if i == "El":
-                                if particle_profile.GetXaxis().GetBinCenter(j) < -1000:
-                                    continue
-                                if particle_profile.GetXaxis().GetBinCenter(j) > -5:
-                                    continue
-                            elif i == "Mu":
-                                if particle_profile.GetXaxis().GetBinCenter(j) < -500:
-                                    continue
-                                if particle_profile.GetXaxis().GetBinCenter(j) > -5:
-                                    continue
-                            elif i in ["Ka"]:
-                                if particle_profile.GetXaxis().GetBinCenter(j) < 40:
-                                    continue
-                            elif i in ["Pr"]:
-                                if particle_profile.GetXaxis().GetBinCenter(j) < 130:
-                                    continue
-                        g.SetPoint(g.GetN(), particle_profile.GetBinCenter(j), particle_profile.GetBinContent(j))
-                    g.SetLineColor(col)
-                    g.SetMarkerColor(col)
-                    g.SetLineWidth(2)
-                    g.Draw("lsame")
-                    del particle_profile
-                else:
-                    particle_profile.SetLineColor(col)
-                    particle_profile.SetMarkerColor(col)
-                    particle_profile.SetLineWidth(2)
-                    particle_profile.Draw("lsame")
-                leg.AddEntry(g)
+            if 1:  # Show prediction
+                for i in ["El", "Mu", "Ka", "Pr"]:
+                    col = TColor.GetColor(colors.pop())
+                    particle_profile = histograms["DeltaPi"+i+"_vs_"+k].ProfileX()
+                    particle_profile.SetName("profile_"+particle_profile.GetName())
+                    if 1:
+                        g = graph("g"+particle_profile.GetName(), particle_profile.GetTitle())
+                        for j in range(1, particle_profile.GetNbinsX()+1):
+                            if 1:
+                                starting_pt = {"El": 0.4, "Mu": 0.4, "Ka": 0.9, "Pr": 1.8}
+                                if i in starting_pt:
+                                    if particle_profile.GetBinCenter(j) < starting_pt[i]:
+                                        continue
+                            if 0:
+                                timepred = particle_profile.GetXaxis().GetBinCenter(j)
+                                if "transpose" in hd.GetName():
+                                    timepred = particle_profile.GetBinContent(j)
+                                if i == "El":
+                                    if timepred < -1000:
+                                        continue
+                                    if timepred > -5:
+                                        continue
+                                elif i == "Mu":
+                                    if timepred < -500:
+                                        continue
+                                    if timepred > -5:
+                                        continue
+                                elif i in ["Ka"]:
+                                    if timepred < 40:
+                                        continue
+                                elif i in ["Pr"]:
+                                    if timepred < 130:
+                                        continue
+                            if "transpose" in hd.GetName():
+                                g.SetPoint(g.GetN(), particle_profile.GetBinContent(j), particle_profile.GetBinCenter(j))
+                            else:
+                                g.SetPoint(g.GetN(), particle_profile.GetBinCenter(j), particle_profile.GetBinContent(j))
+                        g.SetLineColor(col)
+                        g.SetMarkerColor(col)
+                        g.SetLineWidth(2)
+                        g.Draw("lsame")
+                        del particle_profile
+                    else:
+                        particle_profile.SetLineColor(col)
+                        particle_profile.SetMarkerColor(col)
+                        particle_profile.SetLineWidth(2)
+                        particle_profile.Draw("lsame")
+                    leg.AddEntry(g)
 
     # Fitting slices in multiplicity
     h_slices = {}
@@ -408,6 +479,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         g.Draw("sameL")
         h.GetListOfFunctions().Add(g)
         h_slices[hn] = obj
+        draw_plot_label()
         return obj
 
     for i in histograms:
@@ -442,6 +514,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         for i in projections:
             print(i)
             leg.AddEntry(i, "", f"{p.GetTitle()} {p.Integral()} #mu = {p.GetMean():.2f}")
+        draw_plot_label()
 
     multiplicity_range = [0, 45]
     max_multiplicity = 25
@@ -473,8 +546,37 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 fasympt.SetLineColor(s.GetLineColor())
                 fasympt.DrawClone("same")
                 draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
-
             leg.AddEntry(s)
+        draw_plot_label()
+
+        # Drawing the event time resolution alone
+        colors = ['#e41a1c']
+        draw_nice_frame(draw_nice_canvas("resolutionEvTimeOnly"), multiplicity_range, [0, 200], "TOF ev. mult.", "#sigma(t_{ev}^{FT0} - t_{ev}^{TOF}) (ps)")
+        for i in h_slices:
+            print("Drawing slice for event time resolution", i)
+            if "EvTimeReso_" not in i:
+                continue
+            col = TColor.GetColor(colors.pop())
+            s = h_slices[i].At(2).DrawCopy("SAME")
+            for j in range(1, s.GetNbinsX()+1):
+                if s.GetXaxis().GetBinCenter(j) > max_multiplicity:
+                    s.SetBinContent(j, 0)
+                    s.SetBinError(j, 0)
+            s.SetLineColor(col)
+            s.SetMarkerColor(col)
+            s.SetMarkerStyle(20)
+            if "EvTimeReso_" in i:
+                s.SetTitle(s.GetTitle().replace("ev. time", "").strip().replace("#sigma", "#sigma(") + ")")
+                fasympt = TF1("fasympt", "sqrt([0]*[0]/x + [1]*[1])", 0, 40)
+                mult_value = 30
+                fasympt.SetParameter(0, -5.81397e+01)
+                s.Fit(fasympt, "QNWW", "", 4, 20)
+                fasympt.SetLineStyle(7)
+                fasympt.SetLineColor(s.GetLineColor())
+                fasympt.DrawClone("same")
+                draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
+        draw_plot_label()
+
     if 1:
         colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
         draw_nice_frame(draw_nice_canvas("resolutionDelta"), multiplicity_range, [0, 150], "TOF ev. mult.", "#sigma (ps)")
@@ -510,6 +612,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         drawn_slices["fDoubleDelta_vs_fEvTimeTOFMult_reference"].Scale(1./sqrt(2))
         # draw_label(f"{minPt:.2f} < #it{{p}}_{{T}} < {maxPt:.2f} GeV/#it{{c}}", 0.2, 0.97, align=11)
         draw_label(f"{minPt:.2f} < #it{{p}} < {maxPt:.2f} GeV/#it{{c}}", 0.2, 0.97, align=11)
+        draw_plot_label()
 
         if 1:
             # fasympt = TF1("fasympt", "[0]/x^[2]+[1]", 0, 40)
@@ -524,10 +627,18 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 fasympt.DrawClone("same")
                 draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
 
-    update_all_canvases()
+    all_canvases = update_all_canvases()
 
     if not gROOT.IsBatch():
         input("Press enter to exit")
+    # Saving images
+    if 1:
+        imgdir = "/tmp/tofreso/"
+        imgdir = os.path.join("/tmp/", "tofreso")
+        if not os.path.isdir(imgdir):
+            os.makedirs(imgdir)
+        for i in all_canvases:
+            all_canvases[i].SaveAs(os.path.join(imgdir, i + ".png"))
     if not replay_mode:
         print("Writing output to", out_file_name)
         fout = TFile(out_file_name, "RECREATE")
@@ -548,8 +659,9 @@ if __name__ == "__main__":
     parser.add_argument("--jobs", "-j", default=4, type=int, help="Number of multithreading jobs")
     parser.add_argument("--tag", "-t", default="", help="Tag to use for the output file name")
     parser.add_argument("--replay_mode", "--replay", action="store_true", help="Replay previous output")
+    parser.add_argument("--label", "-l", help="Label to put on plots")
     args = parser.parse_args()
     EnableImplicitMT(args.jobs)
     if args.background:
         gROOT.SetBatch(True)
-    main(args.filename, minPt=args.minpt, maxPt=args.maxpt, replay_mode=args.replay_mode, max_files=args.maxfiles, out_file_name=f"/tmp/TOFRESO{args.tag}.root")
+    main(args.filename, minPt=args.minpt, maxPt=args.maxpt, replay_mode=args.replay_mode, max_files=args.maxfiles, out_file_name=f"/tmp/TOFRESO{args.tag}.root", label=args.label)
