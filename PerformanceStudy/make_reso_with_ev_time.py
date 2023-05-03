@@ -44,13 +44,22 @@ def addDFToChain(input_file_name, chain):
             f.Get(dfname).ls()
             continue
         tree = tree.GetListOfBranches()
-        hasit = False
-        for i in tree:
-            if i.GetName() == "fDeltaTMu":
-                hasit = True
-                break
-        if not hasit:
+        # tree.ls()
+
+        def testbranch(b):
+            hasit = False
+            for i in tree:
+                if i.GetName() == b:
+                    hasit = True
+                    break
+            if not hasit:
+                return False
+            return True
+        if not testbranch("fDeltaTMu"):
             return
+        if not testbranch("fPtSigned"):
+            return
+
         tname = "{}?#{}/O2deltatof".format(input_file_name, dfname)
         chain.Add(tname)
     f.Close()
@@ -91,6 +100,12 @@ def makehisto(input_dataframe,
               "fPt": "#it{p}_{T} (GeV/#it{c})",
               "fEvTimeTOFMult": "TOF ev. mult.",
               "fEvTimeTOF": "t_{ev}^{TOF}",
+              "DeltaPiTOF": "t-t_{exp}(#pi)-t_{ev}^{TOF} (ps)",
+              "DeltaKaTOF": "t-t_{exp}(K)-t_{ev}^{TOF} (ps)",
+              "DeltaPrTOF": "t-t_{exp}(p)-t_{ev}^{TOF} (ps)",
+              "DeltaPiT0AC": "t-t_{exp}(#pi)-t_{ev}^{FT0} (ps)",
+              "DeltaKaT0AC": "t-t_{exp}(K)-t_{ev}^{FT0} (ps)",
+              "DeltaPrT0AC": "t-t_{exp}(p)-t_{ev}^{FT0} (ps)",
               "fEvTimeT0AC": "t_{ev}^{FT0}"}
     if xt is None:
         if x in titles:
@@ -228,7 +243,13 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         # df = df.Filter("fPhi<0.4")
         df = df.Filter("fTOFChi2<5")
         df = df.Filter("fTOFChi2>=0")
+        # df = df.Filter("fPtSigned>=0")  # only positive tracks
+        # df = df.Filter("fRefSign>=0")  # only positive tracks
+
+        df = df.Define("fPt", "TMath::Abs(fPtSigned)")
         df = df.Define("DeltaPiTOF", "fDeltaTPi-fEvTimeTOF")
+        df = df.Define("DeltaKaTOF", "fDeltaTKa-fEvTimeTOF")
+        df = df.Define("DeltaPrTOF", "fDeltaTPr-fEvTimeTOF")
         df = df.Define("DeltaPiT0AC", "fDeltaTPi-fEvTimeT0AC")
         df = df.Define("EvTimeReso", "fEvTimeT0AC - fEvTimeTOF")
         for i in ["El", "Mu", "Ka", "Pr"]:
@@ -242,6 +263,10 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df, x="fEta", xr=[100, -1, 1])
         makehisto(df, x="fP", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs p")
         makehisto(df, x="fPt", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs pT")
+        makehisto(df, x="fPt", y="DeltaPiTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPiTOF vs pT")
+        # makehisto(df, x="fPt", y="DeltaKaTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaKaTOF vs pT")
+        makehisto(df.Filter("fPtSigned>=0"), x="fPt", y="DeltaPrTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Pos")
+        makehisto(df.Filter("fPtSigned<=0"), x="fPt", y="DeltaPrTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Neg")
         for i in ["El", "Mu", "Ka", "Pr"]:
             part = {"El": "e", "Mu": "#mu", "Ka": "K", "Pr": "p"}[i]
             makehisto(df, x="fP", y="DeltaPi"+i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
@@ -257,8 +282,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df, x="fEvTimeTOFMult", y="fEvTimeT0AC", xr=multaxis, yr=evtimeaxis, title="T0AC ev. time")
         makehisto(df, x="fEvTimeTOFMult", y="fEvTimeTOF", xr=multaxis, yr=evtimeaxis, title="TOF ev. time")
         makehisto(df, x="fEvTimeTOFMult", y="fDoubleDelta", xr=multaxis, yr=deltaaxis, title="#Delta#Deltat")
-        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiTOF", xr=multaxis, yr=deltaaxis, yt="t-t_{exp}(#pi)-t_{ev}^{TOF} (ps)", title="t-t_{exp}(#pi)-t_{ev}^{TOF}")
-        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiT0AC", xr=multaxis, yr=deltaaxis, yt="t-t_{exp}(#pi)-t_{ev}^{FT0} (ps)", title="t-t_{exp}(#pi)-t_{ev}^{FT0}")
+        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiTOF", xr=multaxis, yr=deltaaxis, title="t-t_{exp}(#pi)-t_{ev}^{TOF}")
+        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiT0AC", xr=multaxis, yr=deltaaxis, title="t-t_{exp}(#pi)-t_{ev}^{FT0}")
         makehisto(df, x="fEvTimeT0AC", xr=evtimeaxis)
         makehisto(df, x="fEvTimeTOF", xr=evtimeaxis)
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>0", title="T0AC ev. time vs TOF ev. time")
@@ -354,6 +379,23 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
 
         print("+ took", time.time()-start, "seconds")
 
+    # Drawing the delta for pos and neg
+    if 1:
+        gROOT.ProcessLine("gErrorIgnoreLevel = 1001;")
+        for i in ["DeltaPrTOF_vs_fPt_Pos", "DeltaPrTOF_vs_fPt_Neg"]:
+            hd = drawhisto(i)
+            fitres = TObjArray()
+            hd.FitSlicesY(TF1("fgaus", "gaus", -300, 300), -1, -1, 10, "QNRG5", fitres)
+            draw_label(hd.GetName())
+            fitres[1].Draw("same")
+            fitres[1].SetLineColor(TColor.GetColor("#377eb8"))
+            fitres[2].SetLineColor(TColor.GetColor("#4daf4a"))
+            for ff in fitres:
+                # ff.SetLineWidth(2)
+                ff.SetMarkerColor(ff.GetLineColor())
+            leg = draw_nice_legend([0.83, 0.92], [0.83, 0.92], columns=2)
+            leg.AddEntry(fitres[1], "#mu", "l")
+
     # Drawing reference histogram
     draw_nice_canvas("reference_histo")
     reference_histo = histograms["fDoubleDelta_vs_fEvTimeTOFMult_reference"].ProjectionY("reference_histo")
@@ -402,8 +444,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
 
     if 1:
         # Drawing Double delta vs Pt and P
-        # for k in ["fPt", "fP"]:
-        for k in ["fP"]:
+        for k in ["fPt", "fP"]:
             hd = drawhisto("fDoubleDelta_vs_"+k, opt="COL", xrange=[0, 5], transpose=True)
             colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
             leg = draw_nice_legend([0.74, 0.92], [0.74, 0.92])
@@ -645,7 +686,10 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         fout.cd()
         for i in histograms:
             print("Writing", i)
-            histograms[i].Write()
+            if "transpose" in histograms[i].GetName():
+                histograms[i].Write(histograms[i].GetName().replace("transpose", "").replace("_copy", ""))
+            else:
+                histograms[i].Write()
         fout.Close()
 
 
