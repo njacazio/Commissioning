@@ -1,0 +1,9 @@
+# take feelight (active channel map) from ccdb
+./getFEE.sh 520259
+
+# get hitmap from QC
+./getHitMap.sh 2022 LHC22f apass3 520294
+
+# compare
+root compare.C
+# output -> newfee.root with the new map as AND of previous one and hitmap
