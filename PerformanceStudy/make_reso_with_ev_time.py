@@ -247,11 +247,11 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         # df = df.Filter("fRefSign>=0")  # only positive tracks
 
         df = df.Define("fPt", "TMath::Abs(fPtSigned)")
-        df = df.Define("DeltaPiTOF", "fDeltaTPi-fEvTimeTOF")
-        df = df.Define("DeltaKaTOF", "fDeltaTKa-fEvTimeTOF")
-        df = df.Define("DeltaPrTOF", "fDeltaTPr-fEvTimeTOF")
-        df = df.Define("DeltaPiT0AC", "fDeltaTPi-fEvTimeT0AC")
         df = df.Define("EvTimeReso", "fEvTimeT0AC - fEvTimeTOF")
+        df = df.Define("EvTimeResoFT0", "fT0ACorrected - fT0CCorrected")
+        for i in ["Pi", "Ka", "Pr"]:
+            df = df.Define(f"Delta{i}TOF", f"fDeltaT{i}-fEvTimeTOF")
+            df = df.Define(f"Delta{i}T0AC", f"fDeltaT{i}-fEvTimeT0AC")
         for i in ["El", "Mu", "Ka", "Pr"]:
             df = df.Define(f"DeltaPi{i}", f"fDeltaTPi-fDeltaT{i}")
         if reference_momentum[0] >= reference_momentum[1]:
@@ -263,8 +263,9 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df, x="fEta", xr=[100, -1, 1])
         makehisto(df, x="fP", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs p")
         makehisto(df, x="fPt", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs pT")
-        makehisto(df, x="fPt", y="DeltaPiTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPiTOF vs pT")
-        # makehisto(df, x="fPt", y="DeltaKaTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaKaTOF vs pT")
+        for i in ["Pi", "Ka", "Pr"]:
+            makehisto(df, x="fPt", y=f"Delta{i}TOF", xr=[10000, 0, 5], yr=[1000, deltaaxis[1], deltaaxis[2]], title=f"Delta{i}TOF vs pT")
+            makehisto(df, x="fPt", y=f"Delta{i}T0AC", xr=[10000, 0, 5], yr=[1000, deltaaxis[1], deltaaxis[2]], title=f"Delta{i}T0AC vs pT")
         makehisto(df.Filter("fPtSigned>=0"), x="fPt", y="DeltaPrTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Pos")
         makehisto(df.Filter("fPtSigned<=0"), x="fPt", y="DeltaPrTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Neg")
         for i in ["El", "Mu", "Ka", "Pr"]:
@@ -290,6 +291,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>5", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 5)")
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>15", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 15)")
         makehisto(df, x="fEvTimeTOFMult", y="EvTimeReso", xr=multaxis, yr=evtimediffaxis, yt="t_{ev}^{FT0} - t_{ev}^{TOF}", title="T0AC ev. time - TOF ev. time")
+        makehisto(df, x="fEvTimeTOFMult", y="EvTimeResoFT0", xr=multaxis, yr=evtimediffaxis, yt="t_{ev}^{FT0} - t_{ev}^{TOF}", title="T0A ev. time - T0C ev. time")
 
         print("pre-processing done, it took", time.time()-start, "seconds")
 
@@ -599,6 +601,9 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 continue
             col = TColor.GetColor(colors.pop())
             s = h_slices[i].At(2).DrawCopy("SAME")
+            # Resetting the first bin
+            s.SetBinContent(1, 0)
+            s.SetBinError(1, 0)
             for j in range(1, s.GetNbinsX()+1):
                 if s.GetXaxis().GetBinCenter(j) > max_multiplicity:
                     s.SetBinContent(j, 0)
@@ -615,14 +620,12 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 fasympt.SetLineStyle(7)
                 fasympt.SetLineColor(s.GetLineColor())
                 fasympt.DrawClone("same")
-                draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
+                draw_label(f"{s.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
         draw_plot_label()
 
-    if 1:
+    if 1:  # Drawing the event time resolution
         colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
         draw_nice_frame(draw_nice_canvas("resolutionDelta"), multiplicity_range, [0, 150], "TOF ev. mult.", "#sigma (ps)")
-        # colors = ["#a65628", '#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00']
-        # leg = draw_nice_legend([0.64, 0.92], [0.57, 0.92])
         leg = draw_nice_legend([0.2, 0.48], [0.2, 0.45])
         drawn_slices = {}
         for i in h_slices:
@@ -680,6 +683,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             os.makedirs(imgdir)
         for i in all_canvases:
             all_canvases[i].SaveAs(os.path.join(imgdir, i + ".png"))
+            all_canvases[i].SaveAs(os.path.join(imgdir, i + ".pdf"))
     if not replay_mode:
         print("Writing output to", out_file_name)
         fout = TFile(out_file_name, "RECREATE")
