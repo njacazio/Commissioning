@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
+import os
 import subprocess
 mainpath = "aliceml:/tmp/pbpb/AnalysisResults/"
 mainpath = "aliceml:tmp/pbpb/AnalysisResults/"
 mainfile = "AnalysisResults_trees_V0S.root"
 tmpfile= "/tmp/downloadlist.sh"
 
+os.makedirs("/tmp/toftrees/", exist_ok=True)
 with open(tmpfile, "w") as f:
-    for i in range(0, 100):
+    for i in range(0, 50):
         cmd = "env -i scp " + mainpath + str(i) + "/" + mainfile + " /tmp/toftrees/{}".format(mainfile.replace(".root", "_{}.root".format(i)))
         cmd = "env -i rsync -u --progress " + mainpath + str(i) + "/" + mainfile + " /tmp/toftrees/{}".format(mainfile.replace(".root", "_{}.root".format(i)))
         f.write("{}\n".format(cmd))
