@@ -1,0 +1,6 @@
+# download diagnostic via timestamp
+# $1 = timestamp
+o2-ccdb-downloadccdbfile -p TOF/Calib/Diagnostic -t $1 -o dia.root
+
+# run
+root testDia.C
