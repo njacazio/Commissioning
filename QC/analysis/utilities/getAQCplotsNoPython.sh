@@ -28,7 +28,7 @@ done
 
 for name in ${DigitsMONames[@]}; do
     o2-ccdb-downloadccdbfile --host localhost:8083 --path qc_async/TOF/MO/Digits/$name/PeriodName=$PERIOD/RunNumber=$RUN/PassName=$PASS -d Run$RUN -o $name.root
-    find .|grep $name.root|awk '{print "cp",$1,"Run'$RUN'/rootfiles/."}'|xargs echo
+    find .|grep $name.root|awk '{print "cp",$1,"Run'$RUN'/rootfiles/."}'|bash
     rm -rf  Run$RUN/qc_async
 #    python3 fetch_output.py qc_async/TOF/MO/Digits/$name -R $RUN --period $PERIOD --pass $PASS -o Run$RUN --downloadmode wget -v
 #    mv Run$RUN/qc_async/TOF/MO/Digits/$name/snapshot.root  Run$RUN/rootfiles/$newname.root
