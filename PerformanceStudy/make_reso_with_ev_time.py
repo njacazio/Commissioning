@@ -9,9 +9,51 @@ import time
 import sys
 import os
 import tqdm
+import inspect
+
+if 1:
+    from ROOT import gInterpreter
+    gInterpreter.Declare("""
+Double_t myfunction(Double_t* x, Double_t* par)
+{
+  Float_t xx = x[0];
+  float norm = par[0];
+  float mean = par[1];
+  float sigma = par[2];
+  float tail = par[3];
+  if (xx <= (tail + mean))
+    return norm * TMath::Gaus(xx, mean, sigma);
+  else
+    return norm * TMath::Gaus(tail + mean, mean, sigma) * TMath::Exp(-tail * (xx - tail - mean) / (sigma * sigma));
+}
+
+TF1* GaussianTail(TString name = "tailgaus", float min=-10, float max=10)
+{
+  TF1* f = new TF1(name, myfunction, min, max, 4);
+  f->SetParameter(0, 1);
+  f->SetParName(0, "Norm");
+  
+  f->SetParameter(1, 0);
+  f->SetParName(1, "Mean");
+
+  f->SetParameter(2, 100);
+  f->SetParLimits(2, 0, 300);
+  f->SetParName(2, "Sigma");
+
+  f->SetParameter(3, 100);
+  f->SetParLimits(3, 0, 300);
+  f->SetParName(3, "Tail");
+  return f;
+}
+""")
+    from ROOT import GaussianTail
+
+
 sys.path.append(os.path.abspath("../QC/analysis/AO2D/"))
+sys.path.append(os.path.abspath("../QC/analysis/utilities/"))
 if 1:
     from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label, draw_diagonal
+    from common import warning_msg
 
 
 if 1:
@@ -21,8 +63,7 @@ if 1:
     red = np.array([0.00, 0.00, 0.57, 0.90, 0.51])
     green = np.array([0.00, 0.65, 0.95, 0.20, 0.00])
     blue = np.array([0.51, 0.55, 0.15, 0.00, 0.10])
-    TColor.CreateGradientColorTable(NRGBs,
-                                    stops, red, green, blue, NCont)
+    TColor.CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont)
     gStyle.SetNumberContours(NCont)
     gStyle.SetPalette(55)
     gStyle.SetOptStat(0)
@@ -55,6 +96,7 @@ def addDFToChain(input_file_name, chain):
             if not hasit:
                 return False
             return True
+
         if not testbranch("fDeltaTMu"):
             return
         if not testbranch("fPtSigned"):
@@ -106,17 +148,28 @@ def makehisto(input_dataframe,
               "DeltaPiT0AC": "t-t_{exp}(#pi)-t_{ev}^{FT0} (ps)",
               "DeltaKaT0AC": "t-t_{exp}(K)-t_{ev}^{FT0} (ps)",
               "DeltaPrT0AC": "t-t_{exp}(p)-t_{ev}^{FT0} (ps)",
+              "FT0AC_minus_TOF": "t_{ev}^{FT0} - t_{ev}^{TOF}",
+              "FT0AC_minus_FT0A": "t_{ev}^{FT0AC} - t_{ev}^{FT0A}",
+              "FT0AC_minus_FT0C": "t_{ev}^{FT0AC} - t_{ev}^{FT0C}",
+              "FT0A_minus_FT0C": "t_{ev}^{FT0A} - t_{ev}^{FT0C}",
+              "FT0A_minus_TOF": "t_{ev}^{FT0A} - t_{ev}^{TOF}",
+              "FT0C_minus_TOF": "t_{ev}^{FT0C} - t_{ev}^{TOF}",
+              "fPhi": "#phi",
               "fEvTimeT0AC": "t_{ev}^{FT0}"}
     if xt is None:
         if x in titles:
             xt = titles[x]
         else:
             xt = x
-    if yt is None:
+            warning_msg("Not defined title for X", x)
+    if y is None:
+        yt = "Counts"
+    elif yt is None:
         if y in titles:
             yt = titles[y]
         else:
             yt = y
+            warning_msg("Not defined title for Y", y)
 
     add_mode = False
     if n in histograms:
@@ -135,7 +188,7 @@ def makehisto(input_dataframe,
     if xr is not None and add_mode is False:
         if logx:
             themin = xr[1]
-            if themin <= 0.:
+            if themin <= 0.0:
                 themin = 0.01
             themax = xr[2]
             logmin = np.log10(themin)
@@ -144,10 +197,10 @@ def makehisto(input_dataframe,
             logdelta = (logmax - logmin) / (float(nbins))
             binEdges = []
             for i in range(nbins):
-                nextEdge = 10**(logmin + i * logdelta)
+                nextEdge = 10 ** (logmin + i * logdelta)
                 binEdges.append(nextEdge)
             binEdges = np.array(binEdges)
-            xr = [xr[0]-1, binEdges]
+            xr = [xr[0] - 1, binEdges]
     if y is not None:
         if add_mode:
             model = histomodels[n]
@@ -188,6 +241,8 @@ def makehisto(input_dataframe,
 
     if n not in histogram_names:
         histogram_names.append(n)
+    else:
+        raise ValueError("Histogram", n, "already exists")
 
 
 def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relval_cpu2/16/AnalysisResults_trees_TOFCALIB.root",
@@ -197,7 +252,10 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
          replay_mode=False,
          max_files=-1,
          label=None,
-         out_file_name="/tmp/TOFRESO.root"):
+         out_file_name="/tmp/TOFRESO.root",
+         do_draw_correlation_evtime_ft0_tof=False,
+         do_draw_comparison_pos_neg=False,
+         do_draw_resolution_with_FT0=True):
     print("Using file:", input_file_name)
 
     out_file_name = out_file_name.replace(".root", f"_{minPt:.2f}_{maxPt:.2f}.root")
@@ -216,27 +274,32 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         chain = TChain()
         if type(input_file_name) is list:
             nfiles = 0
-            for f in tqdm.tqdm(input_file_name, bar_format='Looping on input files {l_bar}{bar:10}{r_bar}{bar:-10b}'):
+            for f in tqdm.tqdm(input_file_name, bar_format="Looping on input files {l_bar}{bar:10}{r_bar}{bar:-10b}"):
                 if max_files >= 0 and nfiles >= max_files:
                     print("Reached max number of files", max_files)
                     break
                 nfiles += 1
                 addDFToChain(f, chain)
             print("Using a total of", nfiles, "files")
-        elif (input_file_name.endswith(".root")):
+        elif input_file_name.endswith(".root"):
             addDFToChain(input_file_name, chain)
-        elif (input_file_name.endswith(".txt")):
+        elif input_file_name.endswith(".txt"):
             with open("input_file_name", "r") as f:
                 for line in f:
                     addDFToChain(line, chain)
+
+        # Definition of the histogram axes
         evtimeaxis = [1000, -2000, 2000]
         evtimediffaxis = [100, -1000, 1000]
         multaxis = [40, 0, 40]
-        ptaxis = [10000, 0, 100]
-        deltaaxis = [100, -2000, 2000]
+        ptaxis = [10000, 0, 5]
+        etaaxis = [8, -0.8, 0.8]
+        phiaxis = [18, 0, 2 * np.pi]
+        deltaaxis = [1000, -2000, 2000]
         tminustexpaxis = [1000, -2000, 2000]
 
         df = RDataFrame(chain)
+        # Apply filters
         # df = df.Filter("fEta>0.3")
         # df = df.Filter("fEta<0.4")
         # df = df.Filter("fPhi>0.3")
@@ -247,8 +310,12 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         # df = df.Filter("fRefSign>=0")  # only positive tracks
 
         df = df.Define("fPt", "TMath::Abs(fPtSigned)")
-        df = df.Define("EvTimeReso", "fEvTimeT0AC - fEvTimeTOF")
-        df = df.Define("EvTimeResoFT0", "fT0ACorrected - fT0CCorrected")
+        df = df.Define("FT0AC_minus_TOF", "fEvTimeT0AC - fEvTimeTOF")
+        df = df.Define("FT0AC_minus_FT0A", "fEvTimeT0AC - fT0ACorrected")
+        df = df.Define("FT0AC_minus_FT0C", "fEvTimeT0AC - fT0CCorrected")
+        df = df.Define("FT0A_minus_FT0C", "fT0ACorrected - fT0CCorrected")
+        df = df.Define("FT0A_minus_TOF", "fT0ACorrected - fEvTimeTOF")
+        df = df.Define("FT0C_minus_TOF", "fT0CCorrected - fEvTimeTOF")
         for i in ["Pi", "Ka", "Pr"]:
             df = df.Define(f"Delta{i}TOF", f"fDeltaT{i}-fEvTimeTOF")
             df = df.Define(f"Delta{i}T0AC", f"fDeltaT{i}-fEvTimeT0AC")
@@ -260,18 +327,18 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df.Filter(f"fP > {reference_momentum[0]}").Filter(f"fP < {reference_momentum[1]}"),
                   x="fEvTimeTOFMult", y="fDoubleDelta", xr=multaxis, yr=deltaaxis,
                   tag="reference", title=f"#Delta#Deltat ref. {reference_momentum[0]:.1f} < #it{{p}} < {reference_momentum[1]:.1f} GeV/#it{{c}}")
-        makehisto(df, x="fEta", xr=[100, -1, 1])
+        makehisto(df, x="fEta", xr=etaaxis)
         makehisto(df, x="fP", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs p")
         makehisto(df, x="fPt", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs pT")
         for i in ["Pi", "Ka", "Pr"]:
-            makehisto(df, x="fPt", y=f"Delta{i}TOF", xr=[10000, 0, 5], yr=[1000, deltaaxis[1], deltaaxis[2]], title=f"Delta{i}TOF vs pT")
-            makehisto(df, x="fPt", y=f"Delta{i}T0AC", xr=[10000, 0, 5], yr=[1000, deltaaxis[1], deltaaxis[2]], title=f"Delta{i}T0AC vs pT")
-        makehisto(df.Filter("fPtSigned>=0"), x="fPt", y="DeltaPrTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Pos")
-        makehisto(df.Filter("fPtSigned<=0"), x="fPt", y="DeltaPrTOF", xr=[10000, 0, 5], yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Neg")
+            makehisto(df, x="fPt", y=f"Delta{i}TOF", xr=ptaxis, yr=deltaaxis, title=f"Delta{i}TOF vs pT")
+            makehisto(df, x="fPt", y=f"Delta{i}T0AC", xr=ptaxis, yr=deltaaxis, title=f"Delta{i}T0AC vs pT")
+        makehisto(df.Filter("fPtSigned>=0"), x="fPt", y="DeltaPrTOF", xr=ptaxis, yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Pos")
+        makehisto(df.Filter("fPtSigned<=0"), x="fPt", y="DeltaPrTOF", xr=ptaxis, yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Neg")
         for i in ["El", "Mu", "Ka", "Pr"]:
             part = {"El": "e", "Mu": "#mu", "Ka": "K", "Pr": "p"}[i]
-            makehisto(df, x="fP", y="DeltaPi"+i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
-            makehisto(df, x="fPt", y="DeltaPi"+i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
+            makehisto(df, x="fP", y="DeltaPi" + i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
+            makehisto(df, x="fPt", y="DeltaPi" + i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
         if 0:
             df = df.Filter(f"fPt>{minPt}")
             df = df.Filter(f"fPt<{maxPt}")
@@ -290,12 +357,20 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>0", title="T0AC ev. time vs TOF ev. time")
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>5", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 5)")
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>15", title="T0AC ev. time vs TOF ev. time (TOF ev. mult > 15)")
-        makehisto(df, x="fEvTimeTOFMult", y="EvTimeReso", xr=multaxis, yr=evtimediffaxis, yt="t_{ev}^{FT0} - t_{ev}^{TOF}", title="T0AC ev. time - TOF ev. time")
-        makehisto(df, x="fEvTimeTOFMult", y="EvTimeResoFT0", xr=multaxis, yr=evtimediffaxis, yt="t_{ev}^{FT0} - t_{ev}^{TOF}", title="T0A ev. time - T0C ev. time")
-
-        print("pre-processing done, it took", time.time()-start, "seconds")
-
-    drawn_histos = []
+        makehisto(df, x="fEvTimeTOFMult", y="FT0AC_minus_TOF", xr=multaxis, yr=evtimediffaxis, title="T0AC ev. time - TOF ev. time vs TOF mult.")
+        makehisto(df, x="fEvTimeTOFMult", y="FT0A_minus_FT0C", xr=multaxis, yr=evtimediffaxis, title="T0A ev. time - T0C ev. time vs TOF mult.")
+        makehisto(df, x="FT0AC_minus_FT0A", xr=evtimediffaxis)
+        makehisto(df, x="FT0AC_minus_FT0C", xr=evtimediffaxis)
+        makehisto(df, x="FT0AC_minus_TOF", xr=evtimediffaxis)
+        makehisto(df, x="FT0A_minus_FT0C", xr=evtimediffaxis)
+        # makehisto(df, x="FT0A_minus_FT0C")
+        makehisto(df, x="FT0A_minus_TOF", xr=evtimediffaxis)
+        makehisto(df, x="FT0C_minus_TOF", xr=evtimediffaxis)
+        for i in range(0, etaaxis[0]):
+            bwidth = (etaaxis[2] - etaaxis[1]) / etaaxis[0]
+            etarange = [etaaxis[1] + bwidth * i, etaaxis[1] + bwidth * (i + 1)]
+            makehisto(df.Filter(f"fEta>{etarange[0]}").Filter(f"fEta<{etarange[1]}"), x="fPhi", y="DeltaPiT0AC", xr=phiaxis, yr=deltaaxis, tag=f"EtaRange={etarange}")
+        print("pre-processing done, it took", time.time() - start, "seconds")
 
     drawn_graphs = []
 
@@ -311,8 +386,17 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         if label is not None and label != "":
             draw_label(label, 0.95, 0.96, 0.03, align=31)
 
+    drawn_histos = []
+
     def drawhisto(hn, opt="COL", xrange=None, yrange=None, transpose=False):
+        print("+ Drawing histogram", f"`{hn}`", "at line", inspect.stack()[1][2])
+        start = time.time()
         draw_nice_canvas(hn, replace=False)
+        if hn not in histograms:
+            print("Histogram", hn, "not found")
+            for i in histograms:
+                print("\t", i)
+            return
         if hn in drawn_histos:
             return histograms[hn]
         drawn_histos.append(hn)
@@ -330,9 +414,9 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                         xaxis.GetNbins(), xaxis.GetBinLowEdge(1), xaxis.GetBinUpEdge(xaxis.GetNbins()))
             htmp.GetXaxis().SetTitle(yaxis.GetTitle())
             htmp.GetYaxis().SetTitle(xaxis.GetTitle())
-            for ix in range(1, xaxis.GetNbins()+1):
+            for ix in range(1, xaxis.GetNbins() + 1):
                 # xb = htmp.GetYaxis().FindBin(xaxis.GetBinCenter(ix))
-                for iy in range(1, yaxis.GetNbins()+1):
+                for iy in range(1, yaxis.GetNbins() + 1):
                     # yb = htmp.GetXaxis().FindBin(yaxis.GetBinCenter(iy))
                     # print(ix, iy, "goes to", xb, yb)
                     htmp.SetBinContent(iy, ix, histograms[hn].GetBinContent(ix, iy))
@@ -354,36 +438,101 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 histograms[hn].GetYaxis().SetRangeUser(*yrange)
 
         draw_plot_label()
+        print("+ took", time.time() - start, "seconds")
         return histograms[hn]
 
     print("List of histograms:")
     for i in histogram_names:
         print("\t", i)
 
-    for i in histogram_names:
-        if 1:
-            if i in ["DeltaPiEl_vs_fPt", "DeltaPiMu_vs_fPt", "DeltaPiKa_vs_fPt", "DeltaPiPr_vs_fPt"]:
+    # Drawing all the histograms
+    if 0:
+        for i in histogram_names:
+            if 1:
+                if i in ["DeltaPiEl_vs_fPt",
+                         "DeltaPiMu_vs_fPt",
+                         "DeltaPiKa_vs_fPt",
+                         "DeltaPiPr_vs_fPt"]:
+                    continue
+            if 1:
+                if i in ["DeltaPiEl_vs_fP",
+                         "DeltaPiMu_vs_fP",
+                         "DeltaPiKa_vs_fP",
+                         "DeltaPiPr_vs_fP"]:
+                    continue
+            if 1:
+                if i in ["fDoubleDelta_vs_fP", "fDoubleDelta_vs_fPt"]:
+                    continue
+            if 1:
+                if "DeltaPiT0AC_vs_fPhi_EtaRange=" in i:
+                    continue
+            if 1:
+                if i in ["DeltaKaT0AC_vs_fPt",
+                         "DeltaPrT0AC_vs_fPt",
+                         "DeltaKaTOF_vs_fPt",
+                         "DeltaPrTOF_vs_fPt"]:
+                    continue
+            if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
                 continue
-        if 1:
-            if i in ["DeltaPiEl_vs_fP", "DeltaPiMu_vs_fP", "DeltaPiKa_vs_fP", "DeltaPiPr_vs_fP"]:
+            hd = drawhisto(i)
+
+    # Drawing the difference between FT0C and FT0A and TOF
+    ft0AC_resolution = None
+    if 1:
+        for i in ["FT0AC_minus_FT0A",
+                  "FT0AC_minus_FT0C",
+                  "FT0AC_minus_TOF",
+                  "FT0A_minus_FT0C",
+                  "FT0A_minus_TOF",
+                  "FT0C_minus_TOF"]:
+            draw_nice_canvas(i)
+            hd = drawhisto(i)
+            fun = TF1("fun", "gaus", -1000, 1000)
+            hd.Fit(fun, "QNRWW")
+            fun.Draw("SAME")
+            draw_label(f"#mu = {fun.GetParameter(1):.2f} (ps)", 0.35, 0.85, 0.03)
+            draw_label(f"#sigma = {fun.GetParameter(2):.2f} (ps)", 0.35, 0.8, 0.03)
+            if i == "FT0A_minus_FT0C":
+                ft0AC_resolution = fun.GetParameter(2)
+
+    # Draw correlation between TOF and FT0 event times
+    if do_draw_correlation_evtime_ft0_tof:
+        for i in histogram_names:
+            if "fEvTimeTOF_vs_fEvTimeT0AC" not in i:
                 continue
-        if 1:
-            if i in ["fDoubleDelta_vs_fP", "fDoubleDelta_vs_fPt"]:
-                continue
-        start = time.time()
-        print("+ Drawing histogram", i)
-        hd = drawhisto(i)
-        if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
+            hd = drawhisto(i)
             draw_diagonal(hd)
             draw_label(f"Correlation: {hd.GetCorrelationFactor():.2f}", 0.3, 0.85, 0.03)
             if ">" in i:
-                draw_label("TOF ev. mult > "+i.split(">")[1], 0.3, 0.8, 0.03)
+                draw_label("TOF ev. mult > " + i.split(">")[1], 0.3, 0.8, 0.03)
 
-        print("+ took", time.time()-start, "seconds")
+    # Drawing the resolution of the T-TExpPi-Tev with the FT0
+    if do_draw_resolution_with_FT0:
+        hd = drawhisto("DeltaPiT0AC_vs_fPt")
+        draw_nice_canvas("TOF_resolution_with_FT0")
+        reso_pt_range = [1.3, 1.35]
+        reso_pt_range_b = [hd.GetXaxis().FindBin(i) for i in reso_pt_range]
+        htof_reso_with_ft0 = hd.ProjectionY("TOF_resolution_with_FT0", *reso_pt_range_b)
+        draw_nice_frame(None, htof_reso_with_ft0, [0, htof_reso_with_ft0.GetMaximum()], htof_reso_with_ft0, yt="Counts")
+        htof_reso_with_ft0.Draw("same")
+        if 0:  # Gaussian model
+            fgaus_reso_with_ft0 = TF1("fgaus_reso_with_ft0", "gaus", -1000, 1000)
+        else:  # Gaussian + tail model
+            fgaus_reso_with_ft0 = GaussianTail("tailgaus", -1000, 1000)
+        htof_reso_with_ft0.Fit(fgaus_reso_with_ft0, "N", "", -200, 200)
+        fgaus_reso_with_ft0.Draw("same")
+        draw_label(f"{reso_pt_range[0]:.2f} < #it{{p}}_{{T}} < {reso_pt_range[1]:.2f} GeV/#it{{c}}", 0.35, 0.85, 0.03)
+        draw_label(f"#mu = {fgaus_reso_with_ft0.GetParameter(1):.2f} (ps)", 0.35, 0.8, 0.03)
+        reso = fgaus_reso_with_ft0.GetParameter(2)
+        draw_label(f"#sigma = {reso:.2f} (ps)", 0.35, 0.75, 0.03)
+        if ft0AC_resolution is not None:
+            reso = sqrt(reso**2 - ft0AC_resolution**2/2)
+            draw_label(f"#sigma_{{FT0AC ev. time}} = {ft0AC_resolution:.2f} (ps)", 0.35, 0.7, 0.03)
+            draw_label(f"#sigma (ev. time sub.) = {reso:.2f} (ps)", 0.35, 0.65, 0.03)
+        draw_plot_label()
 
     # Drawing the delta for pos and neg
-    if 1:
-        gROOT.ProcessLine("gErrorIgnoreLevel = 1001;")
+    if do_draw_comparison_pos_neg:
         for i in ["DeltaPrTOF_vs_fPt_Pos", "DeltaPrTOF_vs_fPt_Neg"]:
             hd = drawhisto(i)
             fitres = TObjArray()
@@ -399,69 +548,77 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             leg.AddEntry(fitres[1], "#mu", "l")
 
     # Drawing reference histogram
-    draw_nice_canvas("reference_histo")
-    reference_histo = histograms["fDoubleDelta_vs_fEvTimeTOFMult_reference"].ProjectionY("reference_histo")
-    reference_histo.Draw()
-    reference_gaus = TF1("reference_gaus", "gaus", -1000, 1000)
-    reference_histo.Fit(reference_gaus, "QNRWW")
-    reference_gaus.Draw("same")
-    draw_label(reference_histo.GetTitle(), 0.35, 0.89, 0.03)
-    draw_label(f"Gaussian fit:", 0.3, 0.84)
-    draw_label(f"#mu = {reference_gaus.GetParameter(1):.3f} (ps)", 0.3, 0.79)
-    draw_label(f"#sigma = {reference_gaus.GetParameter(2):.3f} (ps)", 0.3, 0.74)
-    draw_plot_label()
-
-    reso_vs_p = TGraphErrors()
-    reso_vs_p.GetXaxis().SetTitle("#it{p} (GeV/#it{c})")
-    reso_vs_pt = TGraphErrors()
-    reso_vs_pt.GetXaxis().SetTitle("#it{p}_{T} (GeV/#it{c})")
-    reso_graphs = {"fP": reso_vs_p, "fPt": reso_vs_pt}
-    stopP = 20.3
-    startP = 10.3
-    stopP = 1.3
-    startP = 0.3
-    pwidth = 0.1
-    for j in ["fP", "fPt"]:
-        r = reso_graphs[j]
-        hn = "fDoubleDelta_vs_"+j
-        r.GetYaxis().SetTitle("#sigma "+histograms[hn].GetXaxis().GetTitle())
-        for i in range(int((stopP-startP)/pwidth)):
-            xmin = startP + i*pwidth
-            xmax = xmin + pwidth
-            reso_histo = histograms[hn]
-            reso_histo = reso_histo.ProjectionY(f"reso_histo_{j}_{xmin}_{xmax}", reso_histo.GetXaxis().FindBin(xmin+0.00001), reso_histo.GetXaxis().FindBin(xmax-0.0001))
-            reso_gaus = TF1("reso_gaus_"+j, "gaus", -1000, 1000)
-            reso_histo.Fit(reso_gaus, "QNRWW")
-            r.SetPoint(r.GetN(), (xmin+xmax)/2, sqrt(reso_gaus.GetParameter(2)**2 - reference_gaus.GetParameter(2)**2/2))
-            r.SetPointError(r.GetN()-1, (xmax-xmin)/2, reso_gaus.GetParError(2))
-            if 0:
-                draw_nice_canvas(f"reso_histo_vs_{j}_{i}")
-                reso_histo.Draw()
-                draw_label(f"#mu = {reso_gaus.GetParameter(1):.3f}", 0.3, 0.8)
-                draw_label(f"#sigma = {reso_gaus.GetParameter(2):.3f}", 0.3, 0.75)
-
-        draw_nice_canvas("reso_histo_vs_"+j)
-        r.Draw("AP")
+    if 0:
+        draw_nice_canvas("reference_histo")
+        reference_histo = histograms["fDoubleDelta_vs_fEvTimeTOFMult_reference"].ProjectionY("reference_histo")
+        reference_histo.Draw()
+        reference_gaus = TF1("reference_gaus", "gaus", -1000, 1000)
+        reference_histo.Fit(reference_gaus, "QNRWW")
+        reference_gaus.Draw("same")
+        draw_label(reference_histo.GetTitle(), 0.35, 0.89, 0.03)
+        draw_label(f"Gaussian fit:", 0.3, 0.84)
+        draw_label(f"#mu = {reference_gaus.GetParameter(1):.3f} (ps)", 0.3, 0.79)
+        draw_label(f"#sigma = {reference_gaus.GetParameter(2):.3f} (ps)", 0.3, 0.74)
         draw_plot_label()
 
-    if 1:
-        # Drawing Double delta vs Pt and P
+    # Drawing the resolution of the double delta with the reference subtracted
+    if 0:
+        reso_vs_p = TGraphErrors()
+        reso_vs_p.GetXaxis().SetTitle("#it{p} (GeV/#it{c})")
+        reso_vs_pt = TGraphErrors()
+        reso_vs_pt.GetXaxis().SetTitle("#it{p}_{T} (GeV/#it{c})")
+        reso_graphs = {"fP": reso_vs_p, "fPt": reso_vs_pt}
+        stopP = 20.3
+        startP = 10.3
+        stopP = 1.3
+        startP = 0.3
+        pwidth = 0.1
+        for j in reso_graphs:
+            r_graph = reso_graphs[j]
+            hn = "fDoubleDelta_vs_" + j
+            r_graph.GetYaxis().SetTitle("#sigma " + histograms[hn].GetYaxis().GetTitle())
+            for i in range(int((stopP - startP) / pwidth)):
+                xmin = startP + i * pwidth
+                xmax = xmin + pwidth
+                reso_histo = histograms[hn]
+                reso_histo = reso_histo.ProjectionY(f"reso_histo_{j}_{xmin}_{xmax}",
+                                                    reso_histo.GetXaxis().FindBin(xmin + 0.00001),
+                                                    reso_histo.GetXaxis().FindBin(xmax - 0.0001))
+                reso_gaus = TF1("reso_gaus_" + j, "gaus", -1000, 1000)
+                reso_histo.Fit(reso_gaus, "QNRWW")
+                r_graph.SetPoint(r_graph.GetN(), (xmin + xmax) / 2, sqrt(reso_gaus.GetParameter(2) ** 2 - reference_gaus.GetParameter(2) ** 2 / 2))
+                r_graph.SetPointError(r_graph.GetN() - 1, (xmax - xmin) / 2, reso_gaus.GetParError(2))
+                if 0:
+                    draw_nice_canvas(f"reso_histo_vs_{j}_{i}")
+                    reso_histo.Draw()
+                    draw_label(f"#mu = {reso_gaus.GetParameter(1):.3f}", 0.3, 0.8)
+                    draw_label(f"#sigma = {reso_gaus.GetParameter(2):.3f}", 0.3, 0.75)
+
+            draw_nice_canvas("reso_histo_vs_" + j)
+            r_graph.Draw("AP")
+            draw_plot_label()
+
+    # Drawing Double delta vs Pt and P
+    if 0:
         for k in ["fPt", "fP"]:
-            hd = drawhisto("fDoubleDelta_vs_"+k, opt="COL", xrange=[0, 5], transpose=True)
-            colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
+            hd = drawhisto("fDoubleDelta_vs_" + k, opt="COL", xrange=[0, 5], transpose=True)
+            colors = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]
             leg = draw_nice_legend([0.74, 0.92], [0.74, 0.92])
             if 1:  # Show prediction
                 for i in ["El", "Mu", "Ka", "Pr"]:
                     col = TColor.GetColor(colors.pop())
-                    particle_profile = histograms["DeltaPi"+i+"_vs_"+k].ProfileX()
-                    particle_profile.SetName("profile_"+particle_profile.GetName())
+                    particle_profile = histograms["DeltaPi" + i + "_vs_" + k].ProfileX()
+                    particle_profile.SetName("profile_" + particle_profile.GetName())
                     if 1:
-                        g = graph("g"+particle_profile.GetName(), particle_profile.GetTitle())
-                        for j in range(1, particle_profile.GetNbinsX()+1):
+                        g = graph("g" + particle_profile.GetName(), particle_profile.GetTitle())
+                        for j in range(1, particle_profile.GetNbinsX() + 1):
                             if 1:
-                                starting_pt = {"El": 0.4, "Mu": 0.4, "Ka": 0.9, "Pr": 1.8}
+                                starting_pt = {"El": 0.4,
+                                               "Mu": 0.4,
+                                               "Ka": 0.9,
+                                               "Pr": 1.8}
                                 if i in starting_pt:
-                                    if particle_profile.GetBinCenter(j) < starting_pt[i]:
+                                    if (particle_profile.GetBinCenter(j) < starting_pt[i]):
                                         continue
                             if 0:
                                 timepred = particle_profile.GetXaxis().GetBinCenter(j)
@@ -525,24 +682,32 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         draw_plot_label()
         return obj
 
-    for i in histograms:
-        if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
-            continue
-        if "fPt_" in i or "fP_" in i:
-            continue
-        if "_fPt" in i or "_fP" in i:
-            continue
-        if "vs" in i:
-            fitmultslices(i)
-    fitmultslices("fDoubleDelta_vs_fEvTimeTOFMult")
+    # Fit slices
+    if 0:
+        for i in histograms:
+            if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
+                continue
+            if "fPt_" in i or "fP_" in i:
+                continue
+            if "_fPt" in i or "_fP" in i:
+                continue
+            if "_fEta" in i:
+                continue
+            if "_fPhi" in i:
+                continue
+            if "vs" in i:
+                fitmultslices(i)
+        fitmultslices("fDoubleDelta_vs_fEvTimeTOFMult")
 
-    if 1:
+    if 0:
         draw_nice_canvas("DeltaEvTime")
-        colors = ['#e41a1c', '#377eb8', '#4daf4a']
+        colors = ["#e41a1c", "#377eb8", "#4daf4a"]
         projections = []
-        for i in ["DeltaPiTOF_vs_fEvTimeTOFMult", "DeltaPiTOF_vs_fEvTimeTOFMult", "fDoubleDelta_vs_fEvTimeTOFMult"]:
+        for i in ["DeltaPiTOF_vs_fEvTimeTOFMult",
+                  "DeltaPiT0AC_vs_fEvTimeTOFMult",
+                  "fDoubleDelta_vs_fEvTimeTOFMult"]:
             b = histograms[i].GetXaxis().FindBin(12)
-            p = histograms[i].ProjectionY(i+"_proj", b)
+            p = histograms[i].ProjectionY(i + "_proj", b)
             if i == "DeltaPiTOF_vs_fEvTimeTOFMult":
                 p.Draw()
             else:
@@ -561,10 +726,15 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
 
     multiplicity_range = [0, 45]
     max_multiplicity = 25
+    # Drawing the event time resolution
     if 1:
-        # Drawing the event time resolution
-        colors = ['#e41a1c', '#377eb8', '#4daf4a']
-        draw_nice_frame(draw_nice_canvas("resolutionEvTime"), multiplicity_range, [0, 200], "TOF ev. mult.", "#sigma (ps)")
+        colors = ["#e41a1c", "#377eb8", "#4daf4a"]
+        draw_nice_canvas("resolutionEvTime")
+        draw_nice_frame(None,
+                        multiplicity_range,
+                        [0, 200],
+                        "TOF ev. mult.",
+                        "#sigma (ps)")
         leg = draw_nice_legend([0.64, 0.92], [0.57, 0.92])
         for i in h_slices:
             print("Drawing slice for event time resolution", i)
@@ -572,7 +742,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 continue
             col = TColor.GetColor(colors.pop())
             s = h_slices[i].At(2).DrawCopy("SAME")
-            for j in range(1, s.GetNbinsX()+1):
+            for j in range(1, s.GetNbinsX() + 1):
                 if s.GetXaxis().GetBinCenter(j) > max_multiplicity:
                     s.SetBinContent(j, 0)
                     s.SetBinError(j, 0)
@@ -580,21 +750,34 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             s.SetMarkerColor(col)
             s.SetMarkerStyle(20)
             if "EvTimeReso_" in i:
-                s.SetTitle(s.GetTitle().replace("ev. time", "").strip().replace("#sigma", "#sigma(") + ")")
+                s.SetTitle(s.GetTitle()
+                            .replace("ev. time", "")
+                            .strip()
+                           .replace("#sigma", "#sigma(")
+                           + ")")
                 fasympt = TF1("fasympt", "sqrt([0]*[0]/x + [1]*[1])", 0, 40)
                 mult_value = 30
-                fasympt.SetParameter(0, -5.81397e+01)
+                fasympt.SetParameter(0, -5.81397e01)
                 s.Fit(fasympt, "QNWW", "", 4, 20)
                 fasympt.SetLineStyle(7)
                 fasympt.SetLineColor(s.GetLineColor())
                 fasympt.DrawClone("same")
-                draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
+                draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps",
+                           mult_value,
+                           fasympt.Eval(mult_value) + 5,
+                           align=11,
+                           ndc=False,
+                           size=0.02)
             leg.AddEntry(s)
         draw_plot_label()
 
         # Drawing the event time resolution alone
-        colors = ['#e41a1c']
-        draw_nice_frame(draw_nice_canvas("resolutionEvTimeOnly"), multiplicity_range, [0, 200], "TOF ev. mult.", "#sigma(t_{ev}^{FT0} - t_{ev}^{TOF}) (ps)")
+        colors = ["#e41a1c"]
+        draw_nice_frame(draw_nice_canvas("resolutionEvTimeOnly"),
+                        multiplicity_range,
+                        [0, 200],
+                        "TOF ev. mult.",
+                        "#sigma(t_{ev}^{FT0} - t_{ev}^{TOF}) (ps)")
         for i in h_slices:
             print("Drawing slice for event time resolution", i)
             if "EvTimeReso_" not in i:
@@ -604,7 +787,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             # Resetting the first bin
             s.SetBinContent(1, 0)
             s.SetBinError(1, 0)
-            for j in range(1, s.GetNbinsX()+1):
+            for j in range(1, s.GetNbinsX() + 1):
                 if s.GetXaxis().GetBinCenter(j) > max_multiplicity:
                     s.SetBinContent(j, 0)
                     s.SetBinError(j, 0)
@@ -612,20 +795,34 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             s.SetMarkerColor(col)
             s.SetMarkerStyle(20)
             if "EvTimeReso_" in i:
-                s.SetTitle(s.GetTitle().replace("ev. time", "").strip().replace("#sigma", "#sigma(") + ")")
+                s.SetTitle(s.GetTitle()
+                            .replace("ev. time", "")
+                            .strip()
+                           .replace("#sigma", "#sigma(")
+                           + ")")
                 fasympt = TF1("fasympt", "sqrt([0]*[0]/x + [1]*[1])", 0, 40)
                 mult_value = 30
-                fasympt.SetParameter(0, -5.81397e+01)
+                fasympt.SetParameter(0, -5.81397e01)
                 s.Fit(fasympt, "QNWW", "", 4, 20)
                 fasympt.SetLineStyle(7)
                 fasympt.SetLineColor(s.GetLineColor())
                 fasympt.DrawClone("same")
-                draw_label(f"{s.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
+                draw_label(f"{s.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps",
+                           mult_value,
+                           fasympt.Eval(mult_value) + 5,
+                           align=11,
+                           ndc=False,
+                           size=0.02)
         draw_plot_label()
 
-    if 1:  # Drawing the event time resolution
-        colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
-        draw_nice_frame(draw_nice_canvas("resolutionDelta"), multiplicity_range, [0, 150], "TOF ev. mult.", "#sigma (ps)")
+    if 0:  # Drawing the event time resolution
+        colors = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00"]
+        # ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33']
+        draw_nice_frame(draw_nice_canvas("resolutionDelta"),
+                        multiplicity_range,
+                        [0, 150],
+                        "TOF ev. mult.",
+                        "#sigma (ps)")
         leg = draw_nice_legend([0.2, 0.48], [0.2, 0.45])
         drawn_slices = {}
         for i in h_slices:
@@ -638,14 +835,14 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 continue
             col = TColor.GetColor(colors.pop())
             s = h_slices[i].At(2).DrawCopy("SAME")
-            for j in range(1, s.GetNbinsX()+1):
+            for j in range(1, s.GetNbinsX() + 1):
                 if s.GetXaxis().GetBinCenter(j) > max_multiplicity:
                     s.SetBinContent(j, 0)
                     s.SetBinError(j, 0)
             drawn_slices[i] = s
             if "DoubleDelta" in i and "reference" not in i:
-                for j in range(1, s.GetNbinsX()+1):
-                    diff = s.GetBinContent(j)**2 - h_slices["fDoubleDelta_vs_fEvTimeTOFMult_reference"].At(2).GetBinContent(j)**2/2
+                for j in range(1, s.GetNbinsX() + 1):
+                    diff = (s.GetBinContent(j) ** 2 - h_slices["fDoubleDelta_vs_fEvTimeTOFMult_reference"].At(2).GetBinContent(j) ** 2 / 2)
                     if diff >= 0:
                         s.SetBinContent(j, sqrt(diff))
             s.SetLineColor(col)
@@ -653,7 +850,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             s.SetMarkerStyle(20)
             leg.AddEntry(s)
 
-        drawn_slices["fDoubleDelta_vs_fEvTimeTOFMult_reference"].Scale(1./sqrt(2))
+        drawn_slices["fDoubleDelta_vs_fEvTimeTOFMult_reference"].Scale(1.0 / sqrt(2))
         # draw_label(f"{minPt:.2f} < #it{{p}}_{{T}} < {maxPt:.2f} GeV/#it{{c}}", 0.2, 0.97, align=11)
         draw_label(f"{minPt:.2f} < #it{{p}} < {maxPt:.2f} GeV/#it{{c}}", 0.2, 0.97, align=11)
         draw_plot_label()
@@ -664,17 +861,23 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             mult_value = 30
             for i in drawn_slices:
                 hd = drawn_slices[i]
-                fasympt.SetParameter(0, -5.81397e+01)
+                fasympt.SetParameter(0, -5.81397e01)
                 hd.Fit(fasympt, "QNWW", "", 3, 20)
                 fasympt.SetLineStyle(7)
                 fasympt.SetLineColor(drawn_slices[i].GetLineColor())
                 fasympt.DrawClone("same")
-                draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps", mult_value, fasympt.Eval(mult_value)+5, align=11, ndc=False, size=0.02)
+                draw_label(f"{hd.GetTitle()}|_{{{mult_value}}} = {fasympt.Eval(mult_value):.1f} ps",
+                           mult_value,
+                           fasympt.Eval(mult_value) + 5,
+                           align=11,
+                           ndc=False,
+                           size=0.02)
 
     all_canvases = update_all_canvases()
 
     if not gROOT.IsBatch():
         input("Press enter to exit")
+
     # Saving images
     if 1:
         imgdir = "/tmp/tofreso/"
@@ -684,17 +887,23 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         for i in all_canvases:
             all_canvases[i].SaveAs(os.path.join(imgdir, i + ".png"))
             all_canvases[i].SaveAs(os.path.join(imgdir, i + ".pdf"))
-    if not replay_mode:
-        print("Writing output to", out_file_name)
-        fout = TFile(out_file_name, "RECREATE")
-        fout.cd()
-        for i in histograms:
-            print("Writing", i)
-            if "transpose" in histograms[i].GetName():
-                histograms[i].Write(histograms[i].GetName().replace("transpose", "").replace("_copy", ""))
-            else:
-                histograms[i].Write()
-        fout.Close()
+
+    if replay_mode:
+        return
+
+    print("Writing output to", out_file_name)
+    fout = TFile(out_file_name, "RECREATE")
+    fout.cd()
+    for i in histograms:
+        print("Writing", i)
+        if not histograms[i]:
+            print("Warning! Histogram", i, "is empty!")
+            continue
+        if "transpose" in histograms[i].GetName():
+            histograms[i].Write(histograms[i].GetName().replace("transpose", "").replace("_copy", ""))
+        else:
+            histograms[i].Write()
+    fout.Close()
 
 
 if __name__ == "__main__":
@@ -712,4 +921,10 @@ if __name__ == "__main__":
     EnableImplicitMT(args.jobs)
     if args.background:
         gROOT.SetBatch(True)
-    main(args.filename, minPt=args.minpt, maxPt=args.maxpt, replay_mode=args.replay_mode, max_files=args.maxfiles, out_file_name=f"/tmp/TOFRESO{args.tag}.root", label=args.label)
+    main(args.filename,
+         minPt=args.minpt,
+         maxPt=args.maxpt,
+         replay_mode=args.replay_mode,
+         max_files=args.maxfiles,
+         out_file_name=f"/tmp/TOFRESO{args.tag}.root",
+         label=args.label)

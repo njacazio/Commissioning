@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from ROOT import TCanvas, gPad, TLegend, TLatex, TPaveText
+from ROOT import TCanvas, gPad, TLegend, TLatex, TPaveText, TGraph, TH1
+
 
 nice_canvases = {}
 
 
-def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, title=None, replace=True):
+def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, title=None, replace=True, gridx=False, gridy=False):
     if 1:
         try:
             from screeninfo import get_monitors
@@ -36,6 +37,8 @@ def draw_nice_canvas(name, x=800, y=800, logx=False, logy=False, logz=True, titl
     c.SetBottomMargin(0.15)
     c.SetRightMargin(0.05)
     c.SetTopMargin(0.05)
+    c.SetGridx(gridx)
+    c.SetGridy(gridy)
     c.Draw()
     nice_canvases[name] = c
     return c
@@ -77,6 +80,7 @@ def update_all_canvases():
         if not nice_canvases[i]:
             continue
         nice_canvases[i].Update()
+    return nice_canvases
 
 
 def remove_canvas(n):
@@ -104,13 +108,16 @@ def save_all_canvases(n):
             c.SaveAs(f"{n}]")
 
 
-def set_nice_frame(h):
+def set_nice_frame(h, notitle=False):
     if "TEff" in h.ClassName():
         gPad.GetListOfPrimitives().ls()
         # h = gPad.GetListOfPrimitives().At(0)
         set_nice_frame(h.GetTotalHistogram())
         set_nice_frame(h.GetPassedHistogram())
         return
+    if notitle:
+        h.SetBit(TH1.kNoTitle)
+        h.SetBit(TH1.kNoStats)
     h.GetYaxis().SetTitleSize(0.04)
     h.GetYaxis().SetTitleOffset(1.6)
     h.GetXaxis().SetTitleSize(0.04)
@@ -121,6 +128,8 @@ nice_frames = {}
 
 
 def draw_nice_frame(c, x, y, xt, yt):
+    if c is None:
+        c = gPad
     c.cd()
     global nice_frames
     if not type(x) is list:
@@ -166,3 +175,17 @@ def draw_nice_legend(x=[0.7, 0.92], y=[0.7, 0.92], tit="", columns=1):
     nice_legends.append(leg)
     leg.Draw()
     return leg
+
+
+graphs = []
+
+
+def draw_diagonal(h):
+    g = TGraph()
+    g.SetName(h.GetName()+"_diagonal")
+    g.SetPoint(0, h.GetXaxis().GetBinLowEdge(1), h.GetYaxis().GetBinLowEdge(1))
+    g.SetPoint(1, h.GetXaxis().GetBinUpEdge(h.GetXaxis().GetNbins()), h.GetYaxis().GetBinUpEdge(h.GetYaxis().GetNbins()))
+    g.SetLineStyle(7)
+    g.Draw("sameL")
+    graphs.append(g)
+    return g
