@@ -35,7 +35,7 @@ void addDFToChain(TString fileName, TChain &chain)
   }
 }
 
-TList *plot_momentum(TString fileName = "${HOME}/cernbox2/LHC22m_523308_apass3_relval_cpu2/0/AnalysisResults_trees_TOFCALIB.root")
+TList *plot_momentum(TString fileName = "/home/njacazio/cernbox/Share/Sofia/LHC23zc_apass1_relval_itstpcmap_537901/17/AnalysisResults_trees_TOFCALIB.root")
 {
   TList *listOfOutput = new TList();
   gStyle->SetOptFit(0111);

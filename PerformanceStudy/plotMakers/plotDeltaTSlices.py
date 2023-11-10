@@ -4,8 +4,18 @@
 Script to plot the t-texp-tev histograms in slices of pT
 """
 
+if 1:
+    import sys
+    import os
+    this_file_path = os.path.dirname(__file__)
+    sys.path.append(this_file_path)
+    sys.path.append(os.path.abspath(os.path.join(this_file_path, "../../QC/analysis/AO2D/")))
+    sys.path.append(os.path.abspath(os.path.join(this_file_path, "../../QC/analysis/utilities/")))
+    sys.path.append(os.path.abspath(os.path.join(this_file_path, "../../QC/analysis/")))
+    from common import get_default_parser, wait_for_input
+
 import subprocess
-from ROOT import TFile, TH1, TF1
+from ROOT import TFile, TH1, TF1, TGraphErrors
 import sys
 import os
 sys.path.append(os.path.abspath("../../QC/analysis/AO2D/"))
@@ -87,7 +97,19 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
     slices = {0: [0.59, 0.61],
               1: [0.99, 1.01],
               1: [1.49, 1.51]}
+    slices = {}
+    for i in range(12):
+        slices[i] = [0.4+(1.6-0.4)/12 * i, 0.4+(1.6-0.4)/12 * (i+1)]
+        print(slices[i])
+
     hslices = []
+    g = TGraphErrors()
+    g.GetXaxis().SetTitle(h.GetXaxis().GetTitle())
+    g.GetXaxis().SetTitleOffset(h.GetXaxis().GetTitleOffset())
+    g.GetYaxis().SetTitle(h.GetYaxis().GetTitle())
+    g.GetYaxis().SetTitleOffset(h.GetYaxis().GetTitleOffset())
+    g.SetMarkerStyle(20)
+
     for i in slices:
         pt_bins = [h.GetXaxis().FindBin(slices[i][0]), h.GetXaxis().FindBin(slices[i][1])]
         pt_actual = [h.GetXaxis().GetBinLowEdge(pt_bins[0]), h.GetXaxis().GetBinUpEdge(pt_bins[1])]
@@ -130,6 +152,11 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
             draw_label(f"#mu = {fun.GetParameter(1):.2f} ps", xleft, ystartleft, align=11)
             ystartleft -= 0.05
             draw_label(f"#sigma = {fun.GetParameter(2):.2f} ps", xleft, ystartleft, align=11)
+            g.SetPoint(g.GetN(), sum(pt_actual)/2, fun.GetParameter(2))
+            g.SetPointError(g.GetN()-1, (pt_actual[1]-pt_actual[0])/2, fun.GetParError(2))
+
+    draw_nice_canvas("sigma_vs_pt")
+    g.Draw("ALP")
 
     cans = update_all_canvases()
     input("Press enter to continue")
@@ -138,4 +165,7 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
 
 
 if __name__ == '__main__':
-    main()
+    parser = get_default_parser(__doc__)
+    parser.add_argument("--input", default="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root")
+    args = parser.parse_args()
+    main(args.input)

@@ -1,6 +1,61 @@
 #!/usr/bin/env python3
 
-from ROOT import TCanvas, gPad, TLegend, TLatex, TPaveText, TGraph, TH1
+from ROOT import TColor, gStyle, gROOT, TCanvas, gPad, TLegend, TLatex, TPaveText, TGraph, TH1
+import numpy as np
+
+
+def definenicepalette():
+    NRGBs = 5
+    NCont = 256
+    stops = np.array([0.00, 0.30, 0.61, 0.84, 1.00])
+    red = np.array([0.00, 0.00, 0.57, 0.90, 0.51])
+    green = np.array([0.00, 0.65, 0.95, 0.20, 0.00])
+    blue = np.array([0.51, 0.55, 0.15, 0.00, 0.10])
+    TColor.CreateGradientColorTable(NRGBs,
+                                    stops, red, green, blue, NCont)
+    gStyle.SetNumberContours(NCont)
+    gStyle.SetPalette(55)
+    gStyle.SetOptStat(0)
+    gStyle.SetOptTitle(0)
+    gROOT.ProcessLine("gErrorIgnoreLevel = 1001;")
+
+
+def make_color_range(ncolors, simple=False):
+    if ncolors <= 0:
+        raise ValueError("ncolors must be > 0")
+    if ncolors == 1:
+        simple = True
+    if simple:
+        if ncolors <= 2:
+            colors = ['#e41a1c', '#377eb8']
+        elif ncolors <= 3:
+            colors = ['#e41a1c', '#377eb8', '#4daf4a']
+        elif ncolors <= 4:
+            colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3']
+        elif ncolors < 5:
+            colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00']
+        else:
+            colors = ['#00000', '#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#a65628', '#f781bf']
+        # print("Using colors", colors)
+        if len(colors) < ncolors:
+            print("Not enough colors for simple", ncolors, "using, continous scale")
+            return make_color_range(ncolors=ncolors, simple=False)
+        return [TColor.GetColor(i) for i in colors]
+    NRGBs = 5
+    NCont = 256
+    NCont = ncolors
+    stops = np.array([0.00, 0.30, 0.61, 0.84, 1.00])
+    red = np.array([0.00, 0.00, 0.57, 0.90, 0.51])
+    green = np.array([0.00, 0.65, 0.95, 0.20, 0.00])
+    blue = np.array([0.51, 0.55, 0.15, 0.00, 0.10])
+    FI = TColor.CreateGradientColorTable(NRGBs,
+                                         stops, red, green, blue, NCont)
+    colors = []
+    for i in range(NCont):
+        colors.append(FI + i)
+    colors = np.array(colors, dtype=np.int32)
+    gStyle.SetPalette(NCont, colors)
+    return [int(i) for i in colors]
 
 
 nice_canvases = {}

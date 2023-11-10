@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from plotMakers import plotDeltaTVsEta
 import numpy as np
 import argparse
 from ROOT import TFile, TChain, EnableImplicitMT, RDataFrame, gPad, TH1, TColor, TObjArray, gROOT, gStyle, TGraph, TF1, TGraphErrors, TH2F
@@ -37,11 +38,11 @@ TF1* GaussianTail(TString name = "tailgaus", float min=-10, float max=10)
   f->SetParName(1, "Mean");
 
   f->SetParameter(2, 100);
-  f->SetParLimits(2, 0, 300);
+  f->SetParLimits(2, 0, 200);
   f->SetParName(2, "Sigma");
 
   f->SetParameter(3, 100);
-  f->SetParLimits(3, 0, 300);
+  f->SetParLimits(3, 0, 200);
   f->SetParName(3, "Tail");
   return f;
 }
@@ -52,23 +53,12 @@ TF1* GaussianTail(TString name = "tailgaus", float min=-10, float max=10)
 sys.path.append(os.path.abspath("../QC/analysis/AO2D/"))
 sys.path.append(os.path.abspath("../QC/analysis/utilities/"))
 if 1:
-    from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label, draw_diagonal
-    from common import warning_msg
+    from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label, draw_diagonal, definenicepalette
+    from common import warning_msg, wait_for_input
 
+# Post processing
 
-if 1:
-    NRGBs = 5
-    NCont = 256
-    stops = np.array([0.00, 0.30, 0.61, 0.84, 1.00])
-    red = np.array([0.00, 0.00, 0.57, 0.90, 0.51])
-    green = np.array([0.00, 0.65, 0.95, 0.20, 0.00])
-    blue = np.array([0.51, 0.55, 0.15, 0.00, 0.10])
-    TColor.CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont)
-    gStyle.SetNumberContours(NCont)
-    gStyle.SetPalette(55)
-    gStyle.SetOptStat(0)
-    gStyle.SetOptTitle(0)
-    gROOT.ProcessLine("gErrorIgnoreLevel = 1001;")
+definenicepalette()
 
 
 def addDFToChain(input_file_name, chain):
@@ -255,7 +245,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
          out_file_name="/tmp/TOFRESO.root",
          do_draw_correlation_evtime_ft0_tof=False,
          do_draw_comparison_pos_neg=False,
-         do_draw_resolution_with_FT0=True):
+         do_draw_resolution_with_FT0=True,
+         do_draw_resolution_vs_mult=False):
     print("Using file:", input_file_name)
 
     out_file_name = out_file_name.replace(".root", f"_{minPt:.2f}_{maxPt:.2f}.root")
@@ -292,8 +283,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         evtimeaxis = [1000, -2000, 2000]
         evtimediffaxis = [100, -1000, 1000]
         multaxis = [40, 0, 40]
-        ptaxis = [10000, 0, 5]
-        etaaxis = [8, -0.8, 0.8]
+        ptaxis = [1000, 0, 5]
+        etaaxis = [32, -0.8, 0.8]
         phiaxis = [18, 0, 2 * np.pi]
         deltaaxis = [1000, -2000, 2000]
         tminustexpaxis = [1000, -2000, 2000]
@@ -324,15 +315,20 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         if reference_momentum[0] >= reference_momentum[1]:
             raise ValueError("Reference momentum range is not valid", reference_momentum)
 
+        # Reference double delta
         makehisto(df.Filter(f"fP > {reference_momentum[0]}").Filter(f"fP < {reference_momentum[1]}"),
                   x="fEvTimeTOFMult", y="fDoubleDelta", xr=multaxis, yr=deltaaxis,
                   tag="reference", title=f"#Delta#Deltat ref. {reference_momentum[0]:.1f} < #it{{p}} < {reference_momentum[1]:.1f} GeV/#it{{c}}")
-        makehisto(df, x="fEta", xr=etaaxis)
+        # Double delta
         makehisto(df, x="fP", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs p")
         makehisto(df, x="fPt", y="fDoubleDelta", xr=ptaxis, yr=deltaaxis, title="#Delta#Deltat vs pT")
+        # T - texp - TEv
         for i in ["Pi", "Ka", "Pr"]:
             makehisto(df, x="fPt", y=f"Delta{i}TOF", xr=ptaxis, yr=deltaaxis, title=f"Delta{i}TOF vs pT")
             makehisto(df, x="fPt", y=f"Delta{i}T0AC", xr=ptaxis, yr=deltaaxis, title=f"Delta{i}T0AC vs pT")
+            eta_pt_range = [1.3, 1.35]
+            makehisto(df.Filter(f"fPt>{eta_pt_range[0]}").Filter(f"fPt<{eta_pt_range[1]}"), x="fEta", y=f"Delta{i}T0AC", xr=etaaxis, yr=deltaaxis,
+                      title=f"Delta{i}T0AC vs Eta for {eta_pt_range[0]:.2f} < pT < {eta_pt_range[1]:.2f}")
         makehisto(df.Filter("fPtSigned>=0"), x="fPt", y="DeltaPrTOF", xr=ptaxis, yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Pos")
         makehisto(df.Filter("fPtSigned<=0"), x="fPt", y="DeltaPrTOF", xr=ptaxis, yr=deltaaxis, title="DeltaPrTOF vs pT", tag="Neg")
         for i in ["El", "Mu", "Ka", "Pr"]:
@@ -345,13 +341,15 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         else:
             df = df.Filter(f"fP>{minPt}")
             df = df.Filter(f"fP<{maxPt}")
+        makehisto(df, x="fEta", xr=etaaxis)
 
         # Event times
-        makehisto(df, x="fEvTimeTOFMult", y="fEvTimeT0AC", xr=multaxis, yr=evtimeaxis, title="T0AC ev. time")
-        makehisto(df, x="fEvTimeTOFMult", y="fEvTimeTOF", xr=multaxis, yr=evtimeaxis, title="TOF ev. time")
-        makehisto(df, x="fEvTimeTOFMult", y="fDoubleDelta", xr=multaxis, yr=deltaaxis, title="#Delta#Deltat")
-        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiTOF", xr=multaxis, yr=deltaaxis, title="t-t_{exp}(#pi)-t_{ev}^{TOF}")
-        makehisto(df, x="fEvTimeTOFMult", y="DeltaPiT0AC", xr=multaxis, yr=deltaaxis, title="t-t_{exp}(#pi)-t_{ev}^{FT0}")
+        if do_draw_resolution_vs_mult:
+            makehisto(df, x="fEvTimeTOFMult", y="fEvTimeT0AC", xr=multaxis, yr=evtimeaxis, title="T0AC ev. time")
+            makehisto(df, x="fEvTimeTOFMult", y="fEvTimeTOF", xr=multaxis, yr=evtimeaxis, title="TOF ev. time")
+            makehisto(df, x="fEvTimeTOFMult", y="fDoubleDelta", xr=multaxis, yr=deltaaxis, title="#Delta#Deltat")
+            makehisto(df, x="fEvTimeTOFMult", y="DeltaPiTOF", xr=multaxis, yr=deltaaxis, title="t-t_{exp}(#pi)-t_{ev}^{TOF}")
+            makehisto(df, x="fEvTimeTOFMult", y="DeltaPiT0AC", xr=multaxis, yr=deltaaxis, title="t-t_{exp}(#pi)-t_{ev}^{FT0}")
         makehisto(df, x="fEvTimeT0AC", xr=evtimeaxis)
         makehisto(df, x="fEvTimeTOF", xr=evtimeaxis)
         makehisto(df, x="fEvTimeT0AC", y="fEvTimeTOF", xr=evtimeaxis, yr=evtimeaxis, extracut="fEvTimeTOFMult>0", title="T0AC ev. time vs TOF ev. time")
@@ -393,7 +391,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         start = time.time()
         draw_nice_canvas(hn, replace=False)
         if hn not in histograms:
-            print("Histogram", hn, "not found")
+            warning_msg("Histogram", hn, "not found")
             for i in histograms:
                 print("\t", i)
             return
@@ -477,8 +475,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             hd = drawhisto(i)
 
     # Drawing the difference between FT0C and FT0A and TOF
-    ft0AC_resolution = None
-    if 1:
+    value_ft0AC_resolution = None
+    if 0:
         for i in ["FT0AC_minus_FT0A",
                   "FT0AC_minus_FT0C",
                   "FT0AC_minus_TOF",
@@ -493,7 +491,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             draw_label(f"#mu = {fun.GetParameter(1):.2f} (ps)", 0.35, 0.85, 0.03)
             draw_label(f"#sigma = {fun.GetParameter(2):.2f} (ps)", 0.35, 0.8, 0.03)
             if i == "FT0A_minus_FT0C":
-                ft0AC_resolution = fun.GetParameter(2)
+                value_ft0AC_resolution = fun.GetParameter(2)
 
     # Draw correlation between TOF and FT0 event times
     if do_draw_correlation_evtime_ft0_tof:
@@ -525,9 +523,9 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         draw_label(f"#mu = {fgaus_reso_with_ft0.GetParameter(1):.2f} (ps)", 0.35, 0.8, 0.03)
         reso = fgaus_reso_with_ft0.GetParameter(2)
         draw_label(f"#sigma = {reso:.2f} (ps)", 0.35, 0.75, 0.03)
-        if ft0AC_resolution is not None:
-            reso = sqrt(reso**2 - ft0AC_resolution**2/2)
-            draw_label(f"#sigma_{{FT0AC ev. time}} = {ft0AC_resolution:.2f} (ps)", 0.35, 0.7, 0.03)
+        if value_ft0AC_resolution is not None:
+            reso = sqrt(reso**2 - value_ft0AC_resolution**2/2)
+            draw_label(f"#sigma_{{FT0AC ev. time}} = {value_ft0AC_resolution:.2f} (ps)", 0.35, 0.7, 0.03)
             draw_label(f"#sigma (ev. time sub.) = {reso:.2f} (ps)", 0.35, 0.65, 0.03)
         draw_plot_label()
 
@@ -546,6 +544,52 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 ff.SetMarkerColor(ff.GetLineColor())
             leg = draw_nice_legend([0.83, 0.92], [0.83, 0.92], columns=2)
             leg.AddEntry(fitres[1], "#mu", "l")
+
+    # test
+    # plotDeltaTVsEta.process(histograms=histograms)
+    # Time alignment vs eta
+    if 1:
+        hd = drawhisto("DeltaPiT0AC_vs_fEta", transpose=False)
+        fgaus_eta_model = GaussianTail("fgaus_eta_model", -1000, 1000)
+        result_arr = TObjArray()
+        hd.FitSlicesY(fgaus_eta_model, 1, -1, 10, "QNR", result_arr)
+        result_arr.At(1).SetLineWidth(2)
+        result_arr.At(1).SetLineColor(4)
+        result_arr.At(1).Draw("same")
+        result_arr.At(2).SetLineWidth(2)
+        result_arr.At(2).SetLineColor(1)
+        result_arr.At(2).Draw("same")
+        leg = draw_nice_legend([0.63, 0.91], [0.25, 0.35])
+        leg.AddEntry(result_arr.At(1), "#mu", "l")
+        leg.AddEntry(result_arr.At(2), "#sigma", "l")
+        can = draw_nice_canvas("singlebin")
+        for i in range(1, hd.GetNbinsX()+1):
+            hproj = hd.ProjectionY(f"singlebin_{i}", i, i)
+            hproj.Draw()
+            for j in range(fgaus_eta_model.GetNpar()):
+                fgaus_eta_model.SetParameter(j, result_arr.At(j).GetBinContent(i))
+            if 1:  # Refit
+                hproj.Fit(fgaus_eta_model, "QNRWW", "", -200 + fgaus_eta_model.GetParameter(1), 200 + fgaus_eta_model.GetParameter(1))
+                for j in range(fgaus_eta_model.GetNpar()):
+                    result_arr.At(j).SetBinContent(i, fgaus_eta_model.GetParameter(j))
+                    result_arr.At(j).SetBinError(i, fgaus_eta_model.GetParError(j))
+            fgaus_eta_model.Draw("same")
+
+            can.Modified()
+            can.Update()
+            # input("Press enter to continue")
+        draw_nice_canvas("etaAlignment")
+        draw_nice_frame(None, result_arr.At(1), [-100, 100], result_arr.At(1), "ps")
+        result_arr.At(1).Draw("SAME")
+        result_arr.At(2).Draw("same")
+        leg.Draw()
+
+    # Time alignment and resolution vs phi for eta slices
+    if 1:
+        for i in histograms:
+            if "DeltaPiT0AC_vs_fPhi_EtaRange" in i:
+                continue
+            print(i)
 
     # Drawing reference histogram
     if 0:
@@ -683,7 +727,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         return obj
 
     # Fit slices
-    if 0:
+    do_draw_slices = False
+    if do_draw_slices:
         for i in histograms:
             if "fEvTimeTOF_vs_fEvTimeT0AC" in i:
                 continue
@@ -699,7 +744,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                 fitmultslices(i)
         fitmultslices("fDoubleDelta_vs_fEvTimeTOFMult")
 
-    if 0:
+    # Resolution vs TOF Multiplicity
+    if do_draw_resolution_vs_mult:
         draw_nice_canvas("DeltaEvTime")
         colors = ["#e41a1c", "#377eb8", "#4daf4a"]
         projections = []
@@ -729,7 +775,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
     # Drawing the event time resolution
     if 1:
         colors = ["#e41a1c", "#377eb8", "#4daf4a"]
-        draw_nice_canvas("resolutionEvTime")
+        draw_nice_canvas("resolutionEvTimevsTOFMult")
         draw_nice_frame(None,
                         multiplicity_range,
                         [0, 200],
@@ -815,7 +861,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                            size=0.02)
         draw_plot_label()
 
-    if 0:  # Drawing the event time resolution
+    # Drawing the event time resolution
+    if do_draw_slices:
         colors = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00"]
         # ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33']
         draw_nice_frame(draw_nice_canvas("resolutionDelta"),
@@ -875,8 +922,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
 
     all_canvases = update_all_canvases()
 
-    if not gROOT.IsBatch():
-        input("Press enter to exit")
+    wait_for_input()
 
     # Saving images
     if 1:
