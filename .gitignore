@@ -13,3 +13,6 @@ dpl-config.json
 __pycache__
 .ipynb_checkpoints
 .vscode
+*.so
+*.d
+*.pcm
