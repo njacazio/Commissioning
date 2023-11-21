@@ -60,7 +60,7 @@ def useapi(ccdb_path, host):
 
 
 def list_ccdb_object(ccdb_path,
-                     timestamp=1950004155840,
+                     timestamp=1635659148972,
                      host="http://ccdb-test.cern.ch:8080",
                      tmp_file="out.txt",
                      #  fields_to_save=["Valid-Until:",
@@ -75,7 +75,12 @@ def list_ccdb_object(ccdb_path,
                 "for timestamp", timestamp, convert_timestamp(timestamp),
                 "in host", host,
                 "iteration #", listing_calls[ccdb_path])
-    run_cmd(f"curl -i -L {host}/{ccdb_path}/{timestamp} --output {tmp_file} 2> /dev/null && cat {tmp_file} | head -n 20 > {tmp_file}2",
+    run_cmd(f"curl -i -L {host}/{ccdb_path}/{timestamp} --output {tmp_file} 2> /dev/null",
+            check_status=False,
+            time_it=time_it)
+    if not os.path.isfile(tmp_file):
+        print("Did not find file", tmp_file)
+    run_cmd(f"cat {tmp_file} | head -n 20 > {tmp_file}2",
             check_status=False,
             time_it=time_it)
     os.rename(f"{tmp_file}2", tmp_file)
@@ -109,7 +114,9 @@ def iterative_search(maximum_found_objects=2000,
     delta_timestamp is in milliseconds
     """
     for i in timestamps:
-        verbose_msg("Iteratively searching for", i, "with",
+        verbose_msg("Iteratively searching for", i, "starting from", minimum_timestamp,
+                    convert_timestamp(minimum_timestamp),
+                    "with step", delta_timestamp, "and",
                     max_search_iterations, "iterations")
         delta = delta_timestamp
         iterations = 0
@@ -189,10 +196,10 @@ def download_objects(input_file="t.root",
 
 def main(paths_to_check,
          host):
-    if 0:  # Iterative search
+    if 1:  # Iterative search
         # Initializing timestamp objects
         for i in paths_to_check:
-            list_ccdb_object(i)
+            list_ccdb_object(i, host=host)
 
         # Performing iterative search
         iterative_search()
@@ -229,7 +236,8 @@ if __name__ == "__main__":
                         help="Input paths to check e.g. `qc/TOF/MO/TaskCosmics/CosmicRate/`. Multiple arguments are accepted, files with paths per line in input are also accepted")
     parser.add_argument("--host", "-H", type=str,
                         default="http://ccdb-test.cern.ch:8080",
-                        help="Address of the ccdb host e.g. http://ccdb-test.cern.ch:8080 or http://qcdb.cern.ch:8083")
+                        metavar="http://ccdb-test.cern.ch:8080",
+                        help="Address of the ccdb host e.g. http://ccdb-test.cern.ch:8080, http://qcdb.cern.ch:8083, or http://alice-ccdb.cern.ch")
     parser.add_argument("--output", "-o", type=str,
                         default="/tmp/",
                         help="Path where to store the CCDB objects to download")

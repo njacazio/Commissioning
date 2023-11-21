@@ -1,8 +1,7 @@
 #!/bin/bash
 
-o2-tof-reco-workflow -b --output-type none \
-           | \
-           o2-qc -b --config json://${PWD}/tof.json 
+reset
 
-
-
+o2-tof-reco-workflow -b --output-type none --disable-mc |
+    o2-qc -b --config json://${PWD}/tof.json
+    #o2-qc -b --config json://${PWD}/tof.json --severity warning

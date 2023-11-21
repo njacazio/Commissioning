@@ -15,10 +15,11 @@ BUNCHCROSSINGS=3564
 LHCFREQUENCY=40079000
 
 NEVENTS=$(echo "scale=0;$BUNCHCROSSINGS*$ORBITS*$RATE/$LHCFREQUENCY" | bc -l)
+NEVENTS=20000
 
 echo " --- required $NEVENTS events to be simulated "
 
 ### simulate and digitise
 shopt -s extglob
-./simulation.sh $NEVENTS && ./digitization.sh $RATE && rm -v !("tofdigits.root"|"o2sim_grp.root")
+./simulation.sh $NEVENTS && ./digitization.sh $RATE
 

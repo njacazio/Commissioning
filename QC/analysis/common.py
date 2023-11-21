@@ -36,11 +36,14 @@ def convert_timestamp(ts, make_timestamp=False):
 
 def get_ccdb_api(host):
     global ccdb_api
-    if ccdb_api is None:
-        ccdb_api = [o2.ccdb.CcdbApi(), ""]
-    if ccdb_api[1] != host:
-        ccdb_api[1] = host
-        ccdb_api[0].init(host)
+    try:
+        if ccdb_api is None:
+            ccdb_api = [o2.ccdb.CcdbApi(), ""]
+        if ccdb_api[1] != host:
+            ccdb_api[1] = host
+            ccdb_api[0].init(host)
+    except:
+        fatal_msg("Cannot get CCDB api")
     try:
         if not ccdb_api[0].isHostReachable():
             fatal_msg("AlienToken not available, call `alien.py`")
