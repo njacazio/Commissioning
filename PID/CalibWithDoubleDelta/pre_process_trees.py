@@ -13,9 +13,9 @@ import tqdm
 import inspect
 
 
-sys.path.append(os.path.abspath("../../PerformanceStudy/"))
-sys.path.append(os.path.abspath("../../QC/analysis/AO2D/"))
-sys.path.append(os.path.abspath("../../QC/analysis/utilities/"))
+sys.path.append(os.path.abspath("../PerformanceStudy/"))
+sys.path.append(os.path.abspath("../QC/analysis/AO2D/"))
+sys.path.append(os.path.abspath("../QC/analysis/utilities/"))
 if 1:
     from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_nice_legend, draw_nice_frame, draw_label, draw_diagonal, definenicepalette
     from common import warning_msg, wait_for_input
@@ -23,8 +23,8 @@ if 1:
 
 
 def main(input_file_name="/tmp/AO2D.root",
-         minPt=0.6,
-         maxPt=0.7,
+         positives=True,
+         eta_pt_range=[1.3, 1.45],
          reference_momentum=[0.6, 0.7],
          max_files=-1,
          label=None,
@@ -58,17 +58,16 @@ def main(input_file_name="/tmp/AO2D.root",
     tminustexpaxis = [1000, -2000, 2000]
 
     df = RDataFrame(chain)
-    # Apply filters
-    # df = df.Filter("fEta>0.3")
-    # df = df.Filter("fEta<0.4")
-    # df = df.Filter("fPhi>0.3")
-    # df = df.Filter("fPhi<0.4")
-    # df = df.Filter("fTOFChi2<5")
-    # df = df.Filter("fTOFChi2>=0")
-    # df = df.Filter("fPtSigned>=0")  # only positive tracks
-    # df = df.Filter("fRefSign>=0")  # only positive tracks
-
     df = define_extra_columns(df)
+    # Apply filters
+    df = df.Filter("fTOFChi2<5")
+    df = df.Filter("fTOFChi2>=0")
+    if positives:
+        df = df.Filter("fPtSigned>=0")  # only positive tracks
+    else:
+        df = df.Filter("fPtSigned<=0")  # only negative tracks
+    df = df.Filter(f"fPt>{eta_pt_range[0]}").Filter(f"fPt<{eta_pt_range[1]}")
+
     if reference_momentum[0] >= reference_momentum[1]:
         raise ValueError("Reference momentum range is not valid", reference_momentum)
 
@@ -81,8 +80,6 @@ def main(input_file_name="/tmp/AO2D.root",
     # T - texp - TEv
     makehisto(df, x="fPt", xr=ptaxis)
     makehisto(df, x="fEta", xr=etaaxis)
-    eta_pt_range = [1.3, 1.45]
-    df = df.Filter(f"fPt>{eta_pt_range[0]}").Filter(f"fPt<{eta_pt_range[1]}")
     for i in ["Pi", "Ka", "Pr"]:
         # makehisto(df, x="fPt", y=f"Delta{i}TOF", xr=ptaxis, yr=deltaaxis, title=f"Delta{i}TOF vs pT")
         # makehisto(df, x="fPt", y=f"Delta{i}T0AC", xr=ptaxis, yr=deltaaxis, title=f"Delta{i}T0AC vs pT")
@@ -100,15 +97,11 @@ def main(input_file_name="/tmp/AO2D.root",
     # else:
     #     df = df.Filter(f"fP>{minPt}")
     #     df = df.Filter(f"fP<{maxPt}")
-    if 0:
-        for i in range(0, etaaxis[0]):
-            bwidth = (etaaxis[2] - etaaxis[1]) / etaaxis[0]
-            etarange = [etaaxis[1] + bwidth * i, etaaxis[1] + bwidth * (i + 1)]
-            makehisto(df.Filter(f"fEta>{etarange[0]}").Filter(f"fEta<{etarange[1]}"), x="fPhi", y="DeltaPiT0AC", xr=phiaxis, yr=deltaaxis, tag=f"EtaRange={etarange}")
+    makehisto(df, x="fPhi", y="DeltaPiT0AC", z="fEta", xr=phiaxis, yr=deltaaxis, zr=etaaxis)
 
     histograms = get_histogram()
     for i in histograms:
-        draw_nice_canvas(i)
+        draw_nice_canvas(i, logz="TH3" not in histograms[i].ClassName())
         histograms[i].Draw("col")
     update_all_canvases()
     input("Press enter to continue")

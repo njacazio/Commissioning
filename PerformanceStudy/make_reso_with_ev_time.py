@@ -102,14 +102,22 @@ histograms = {}
 histomodels = {}
 
 
+def get_histogram(hn=None):
+    if hn is None:
+        return histograms
+    return histograms[hn]
+
+
 def makehisto(input_dataframe,
               x,
               y=None,
               z=None,
               xr=None,
               yr=None,
+              zr=None,
               xt=None,
               yt=None,
+              zt=None,
               extracut=None,
               logx=False,
               extracut_to_name=True,
@@ -160,6 +168,8 @@ def makehisto(input_dataframe,
         else:
             yt = y
             warning_msg("Not defined title for Y", y)
+    if z is not None and zt is None:
+        zt = titles[z]
 
     add_mode = False
     if n in histograms:
@@ -191,7 +201,22 @@ def makehisto(input_dataframe,
                 binEdges.append(nextEdge)
             binEdges = np.array(binEdges)
             xr = [xr[0] - 1, binEdges]
-    if y is not None:
+    if z is not None:
+        if add_mode:
+            model = histomodels[n]
+        else:
+            if title is None:
+                title = n
+            title = f"{title};{xt};{yt};{zt}"
+            model = TH3DModel(n, title, *xr, *yr, *zr)
+        h = df.Histo3D(model, x, y, z)
+        if add_mode:
+            histograms[n].Add(h.GetPtr())
+            return
+        else:
+            histomodels[n] = model
+            histograms[n] = h
+    elif y is not None:
         if add_mode:
             model = histomodels[n]
         else:
@@ -233,6 +258,22 @@ def makehisto(input_dataframe,
         histogram_names.append(n)
     else:
         raise ValueError("Histogram", n, "already exists")
+
+
+def define_extra_columns(df):
+    df = df.Define("fPt", "TMath::Abs(fPtSigned)")
+    df = df.Define("FT0AC_minus_TOF", "fEvTimeT0AC - fEvTimeTOF")
+    df = df.Define("FT0AC_minus_FT0A", "fEvTimeT0AC - fT0ACorrected")
+    df = df.Define("FT0AC_minus_FT0C", "fEvTimeT0AC - fT0CCorrected")
+    df = df.Define("FT0A_minus_FT0C", "fT0ACorrected - fT0CCorrected")
+    df = df.Define("FT0A_minus_TOF", "fT0ACorrected - fEvTimeTOF")
+    df = df.Define("FT0C_minus_TOF", "fT0CCorrected - fEvTimeTOF")
+    for i in ["Pi", "Ka", "Pr"]:
+        df = df.Define(f"Delta{i}TOF", f"fDeltaT{i}-fEvTimeTOF")
+        df = df.Define(f"Delta{i}T0AC", f"fDeltaT{i}-fEvTimeT0AC")
+    for i in ["El", "Mu", "Ka", "Pr"]:
+        df = df.Define(f"DeltaPi{i}", f"fDeltaTPi-fDeltaT{i}")
+    return df
 
 
 def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relval_cpu2/16/AnalysisResults_trees_TOFCALIB.root",
@@ -300,18 +341,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         # df = df.Filter("fPtSigned>=0")  # only positive tracks
         # df = df.Filter("fRefSign>=0")  # only positive tracks
 
-        df = df.Define("fPt", "TMath::Abs(fPtSigned)")
-        df = df.Define("FT0AC_minus_TOF", "fEvTimeT0AC - fEvTimeTOF")
-        df = df.Define("FT0AC_minus_FT0A", "fEvTimeT0AC - fT0ACorrected")
-        df = df.Define("FT0AC_minus_FT0C", "fEvTimeT0AC - fT0CCorrected")
-        df = df.Define("FT0A_minus_FT0C", "fT0ACorrected - fT0CCorrected")
-        df = df.Define("FT0A_minus_TOF", "fT0ACorrected - fEvTimeTOF")
-        df = df.Define("FT0C_minus_TOF", "fT0CCorrected - fEvTimeTOF")
-        for i in ["Pi", "Ka", "Pr"]:
-            df = df.Define(f"Delta{i}TOF", f"fDeltaT{i}-fEvTimeTOF")
-            df = df.Define(f"Delta{i}T0AC", f"fDeltaT{i}-fEvTimeT0AC")
-        for i in ["El", "Mu", "Ka", "Pr"]:
-            df = df.Define(f"DeltaPi{i}", f"fDeltaTPi-fDeltaT{i}")
+        df = define_extra_columns(df)
         if reference_momentum[0] >= reference_momentum[1]:
             raise ValueError("Reference momentum range is not valid", reference_momentum)
 
