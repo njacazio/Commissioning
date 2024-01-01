@@ -1,21 +1,84 @@
-# collect calib info from alien to the local laptop
+# Basic requirements: snapshot.root with channel calibs (starting point) in the working dir
+# e.g. in alien -> /alice/cern.ch/user/f/fnoferin/calib/ChannelCalib/snapshot.root
 
-# if the reconstruction was done in a single dir
-./mergerun.sh $PERIOD $RUN
-# e.g.
-./mergerun.sh LHC22m 523142
+# 1 step
+# collecting calib info of one run
+# Requirments: alien token
+# scripts: collect.sh, mergerunSub.sh, doSplitting.sh, copy.sh
+# macro: DoMerge.C
+# note that: copy from alien will parallelize up to 40 concurrent files to speed up the process (be sure you have enough disk space)
+# Assumption: DATA from 2023 (otherwise check the main scripts)
+# output (in the run dir) skim*.root (usually multiple-files)
 
-# if the reconstruction was splitted in subdir (large runs)
-./mergerunSub.sh LHC22m 523142
-# output also splitted in parts
+# chmod a+x collect.sh (if needed)
+./collect.sh $period $run $pass
+# e.g. ./collect.sh LHC23zzk 544454 apass1
+# Requirments: full step1
+# scripts: doPhase_TS.sh
+# macros: calibPhase.C, accumulate.C
+
+# 2 step (after 1 step is completed for the run)
+# calculate LHC phases and prepare outputs for time-slewing (TS) correction (TS corr require the subtraction of the LHC phase)
+
+# prepare output dirs (if needed)
+# for cal objects
+mkdir TOF
+mkdir TOF/Calib
+mkdir TOF/Calib/LHCphase
+mkdir TOF/Calib/ChannelCalib
+cp snapshot.root TOF/Calib/ChannelCalib/.
+# for intermediate outputs (this will contain the outputs needed for time-slewing corrections)
+mkdir accumulated
+
+# run step 2
+# chmod a+x doPhase_TS.sh (if needed)
+./doPhase_TS.sh $run
+# e.g. ./doPhase_TS.sh 544476
+
+# 3 step: TS corrections (it can be run on many runs, all the outputs in the accumulated dir used)
+# Requirments: full step1 and step2 (for all the runs to be used)
+# macros: doTS.C
+# output: newtsNew.root
+root -b -q -l doTS.C+
+# macro to compare one channel: snapshot vs new
+root draw.C
+# to speed up it is possible to modify doTS.C to run only on few sectors (-> run parallel processes). A macro is provided to merge -> mergeTS.C
+
+# 4 step: channel offsets (after fixing TS corr)
+# Requirments: full step1, step2, step3
+# macros: doCal.C
+# output: $run_offset.root, TOF/Calib/ChannelCalib/$run_ts.root
+root -b -q -l doCal.C+\($run\)
+# e.g. root -b -q -l doCal.C+\(544476\)
+
+# 5 step: preparing scripts for ccdb update
+# requirement: all previous steps and move do a subdir
+# macros: prepareRun.C
+# runlist with start and stop time in ms ("listaRuns") in main dir
+# e.g., cat listaRuns
+# 544476	1697041509696	1697046812862
+# move to a subdir
+mkdir ccdb
+cd ccdb
+cp ../prepareRun.C .
+mkdir TOF
+mkdir TOF/Calib
+mkdir TOF/Calib/LHCphase
+mkdir TOF/Calib/ChannelCalib
+# prepare main script ("com")
+echo "#""!""/bin/bash" >com
+echo "export ccdbhost=http://alice-ccdb.cern.ch" >>com
+chmod a+x com
+echo "bash com" >README
+# cp channel offset calibration in current subdir
+cp ../TOF/Calib/ChannelCalib/$run_ts.root TOF/Calib/ChannelCalib/.
+# run macro for each run (it is better to open a Jira ticket before to do it in order to know what is the Jira ticket number)
+root -b -q -l prepareRun.C\($run,$jira\)
+# e.g.: root -b -q -l prepareRun.C\(544476,4546\)
+# mk a zip file with all 
+zip -r calTOFupdate.zip com TOF README
+# Note that: "$ ccdbhost" has to be replace with "$ccdbhost"
+# if you want to test with ccdb-test -> replace in com ccdbhost with ccdb-test.cern.ch:8080, and run "bash com" (prod ccdb requires authentication -> request via Jira)
 
 
-# once collected calibration can be run locally
-export ccdburl="http://ccdb-test.cern.ch:8080"
-./calibLHCrun.sh 523559
-./calibDiarun.sh 523559
-./calibOffset.sh 523559
-# if run was short (only one input) scripts with "Simple" in the name should be used
 
-
-# with this config objects are read (but the ones needed from prod ccdb) and loaded in test ccdb

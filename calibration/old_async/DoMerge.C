@@ -20,3 +20,4 @@ void DoMerge(char* nomelista="listafile",char* output="calib.root"){
   if (i)
     m.Merge();
 }
+
