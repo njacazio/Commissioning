@@ -4,15 +4,15 @@
 #include "DataFormatsTOF/CalibInfoTOFshort.h"
 #include "TOFBase/Utils.h"
 
-bool useOnlyOldOffsets=false; // enable it not to use old TS corrections, but only offsets
-int firstSect=0;              // run starting from this sector (def=0)
-int lastSect=17;              // run till this sector (def=17)
+bool useOnlyOldOffsets=true;  // enable it not to use old TS corrections, but only offsets
+int firstSect;              // run starting from this sector (def=0), defined in doTS
+int lastSect;               // run till this sector, defined in doTS
 
 std::vector<o2::dataformats::CalibInfoTOFshort> mVectC, *mPvectC = &mVectC;
 TChain *mTreeFit;
 int mNfits = 0;
 const int NCHPERBUNCH = o2::tof::Geo::NCHANNELS / o2::tof::Geo::NSECTORS / 16;
-static const int NMINTOFIT = 500;
+static const int NMINTOFIT = 250;
 
 o2::dataformats::CalibTimeSlewingParamTOF *ts, *tsNew;
 
@@ -21,7 +21,10 @@ void fitTimeSlewing(int sector, const o2::dataformats::CalibTimeSlewingParamTOF*
 void fitChannelsTS(int chStart, const o2::dataformats::CalibTimeSlewingParamTOF* oldTS, o2::dataformats::CalibTimeSlewingParamTOF* newTS);
 int fitSingleChannel(int ch, TH2F* h, const o2::dataformats::CalibTimeSlewingParamTOF* oldTS, o2::dataformats::CalibTimeSlewingParamTOF* newTS);
 
-void doTS(){
+void doTS(int fsec=0, int lsec=17){
+  firstSect = fsec;
+  lastSect  = lsec;
+
   TFile *fCal = new TFile("./TOF/Calib/ChannelCalib/snapshot.root");
   ts = (o2::dataformats::CalibTimeSlewingParamTOF *) fCal->Get("ccdb_object");
   tsNew = new o2::dataformats::CalibTimeSlewingParamTOF;
@@ -72,8 +75,12 @@ int extractNewTimeSlewing(const o2::dataformats::CalibTimeSlewingParamTOF* oldTS
 
   mTreeFit->SetBranchAddress("TOFCollectedCalibInfo", &mPvectC);
 
-  for (int isec = firstSec; isec < lastSect+1; isec++) {
+  for (int isec = firstSect; isec < lastSect+1; isec++) {
     fitTimeSlewing(isec, oldTS, newTS);
+
+    TFile *fsl = new TFile(Form("newtsNew_%d.root",isec),"RECREATE");
+    fsl->WriteObjectAny(tsNew, tsNew->Class(), "ccdb_object");
+    fsl->Close();
   }
 
   return 0;

@@ -4,8 +4,8 @@
 # 1 step
 # collecting calib info of one run
 # Requirments: alien token
-# scripts: collect.sh, mergerunSub.sh, doSplitting.sh, copy.sh
-# macro: DoMerge.C
+# scripts: collect.sh, mergerunSub.sh, doSplitting.sh, copy.sh, filterall.sh, filter.sh
+# macro: DoMerge.C, filter.C
 # note that: copy from alien will parallelize up to 40 concurrent files to speed up the process (be sure you have enough disk space)
 # Assumption: DATA from 2023 (otherwise check the main scripts)
 # output (in the run dir) skim*.root (usually multiple-files)
@@ -39,10 +39,23 @@ mkdir accumulated
 # Requirments: full step1 and step2 (for all the runs to be used)
 # macros: doTS.C
 # output: newtsNew.root
+ls accumulated/*.root >listaCalTS
 root -b -q -l doTS.C+
+
+# you can parallelize per sector by running with arguments (e.g. below, but you can split more)
+# sectors 0-8
+root -b -q -l doTS.C+\(0,8\)
+# sectors 9-17
+root -b -q -l doTS.C+\(9,17\)
+# creating a list with the latest file produced in each process
+ls newtsNew_8.root newtsNew_17.root >lista
+# running merging
+root -b -q -l mergeTS.C
+# renaming output
+mv merged.root newtsNew.root
+
 # macro to compare one channel: snapshot vs new
 root draw.C
-# to speed up it is possible to modify doTS.C to run only on few sectors (-> run parallel processes). A macro is provided to merge -> mergeTS.C
 
 # 4 step: channel offsets (after fixing TS corr)
 # Requirments: full step1, step2, step3
