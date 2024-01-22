@@ -58,6 +58,7 @@ void accumulate(int run, long start, long end){
       }
     }
   }
+  write(run, inst);
 }
 
 void write(int run, int instance){

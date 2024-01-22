@@ -8,7 +8,7 @@ std::vector<o2::dataformats::CalibInfoTOFshort> mVectC, *mPvectC = &mVectC;
 TChain *mTreeFit;
 int mNfits = 0;
 const int NCHPERBUNCH = o2::tof::Geo::NCHANNELS / o2::tof::Geo::NSECTORS / 16;
-static const int NMINTOFIT = 500;
+static const int NMINTOFIT = 150;
 
 float offsets[o2::tof::Geo::NCHANNELS];
 float fraction[o2::tof::Geo::NCHANNELS];
@@ -72,7 +72,7 @@ void doCal(int runarg){
 
     double total = htmp->Integral(1, htmp->GetNbinsX());
 
-    if(total < 500){ // isProblematic
+    if(total < NMINTOFIT){ // isProblematic
       fraction[i] = -1;
       hfrDist->Fill(fraction[i]);
       sigmaCh[i] = 0;

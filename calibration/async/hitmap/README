@@ -1,0 +1,21 @@
+# get list of ccdb object
+rm FEELIGHT; wget http://alice-ccdb.cern.ch/browse/TOF/Calib/FEELIGHT
+mkdir newobj
+
+# compile your run list
+# e.g.
+$> more runlist 
+544013
+544028
+544032
+544091
+544095
+
+# extract run info
+cat runlist |awk '{print "./checkrun.sh",$1}'|bash
+# it should look like, containing all runs with TOF in daq (for instance 544091 and 544095 were excluded since TOF is not there)
+> more runinfo 
+544013 1696467698000 1696481790000
+544028 1696481790000 1696482504000
+544032 1696483089000 1696487552000
+
