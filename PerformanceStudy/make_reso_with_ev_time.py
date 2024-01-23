@@ -289,6 +289,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
          do_draw_resolution_with_FT0=True,
          do_draw_resolution_vs_mult=False):
     print("Using file:", input_file_name)
+    if label.strip() == "":
+        label = None
 
     out_file_name = out_file_name.replace(".root", f"_{minPt:.2f}_{maxPt:.2f}.root")
     if replay_mode is True:
@@ -394,10 +396,14 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         # makehisto(df, x="FT0A_minus_FT0C")
         makehisto(df, x="FT0A_minus_TOF", xr=evtimediffaxis)
         makehisto(df, x="FT0C_minus_TOF", xr=evtimediffaxis)
-        for i in range(0, etaaxis[0]):
-            bwidth = (etaaxis[2] - etaaxis[1]) / etaaxis[0]
-            etarange = [etaaxis[1] + bwidth * i, etaaxis[1] + bwidth * (i + 1)]
-            makehisto(df.Filter(f"fEta>{etarange[0]}").Filter(f"fEta<{etarange[1]}"), x="fPhi", y="DeltaPiT0AC", xr=phiaxis, yr=deltaaxis, tag=f"EtaRange={etarange}")
+        if 0:
+            for i in range(0, etaaxis[0]):
+                bwidth = (etaaxis[2] - etaaxis[1]) / etaaxis[0]
+                etarange = [etaaxis[1] + bwidth * i, etaaxis[1] + bwidth * (i + 1)]
+                makehisto(df.Filter(f"fEta>{etarange[0]}").Filter(f"fEta<{etarange[1]}"), x="fPhi", y="DeltaPiT0AC", xr=phiaxis, yr=deltaaxis, tag=f"EtaRange={etarange}")
+        else:
+            makehisto(df, x="fPhi", y="DeltaPiT0AC", z="fEta", xr=phiaxis, yr=deltaaxis, zr=etaaxis)
+
         print("pre-processing done, it took", time.time() - start, "seconds")
 
     drawn_graphs = []
@@ -534,6 +540,11 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             if ">" in i:
                 draw_label("TOF ev. mult > " + i.split(">")[1], 0.3, 0.8, 0.03)
 
+    # PID 2D plots
+    if 1:
+        for i in ["Pi", "Ka", "Pr"]:
+            hd = drawhisto(f"Delta{i}T0AC_vs_fPt")
+
     # Drawing the resolution of the T-TExpPi-Tev with the FT0
     if do_draw_resolution_with_FT0:
         hd = drawhisto("DeltaPiT0AC_vs_fPt")
@@ -581,6 +592,8 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
     if 1:
         hd = drawhisto("DeltaPiT0AC_vs_fEta", transpose=False)
         fgaus_eta_model = GaussianTail("fgaus_eta_model", -1000, 1000)
+        fgaus_eta_model.SetParameter(1, 0)
+        fgaus_eta_model.SetParLimits(1, -300, 300)
         result_arr = TObjArray()
         hd.FitSlicesY(fgaus_eta_model, 1, -1, 10, "QNR", result_arr)
         result_arr.At(1).SetLineWidth(2)
@@ -592,6 +605,9 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
         leg = draw_nice_legend([0.63, 0.91], [0.25, 0.35])
         leg.AddEntry(result_arr.At(1), "#mu", "l")
         leg.AddEntry(result_arr.At(2), "#sigma", "l")
+        tit = hd.GetTitle().split(" ")
+        tit = f"{tit[-5]} < #it{{p}}_{{T}} < {tit[-1]} GeV/#it{{c}}"
+        ptlabel = draw_label(tit, x=0.14, y=0.97, align=11)
         can = draw_nice_canvas("singlebin")
         for i in range(1, hd.GetNbinsX()+1):
             hproj = hd.ProjectionY(f"singlebin_{i}", i, i)
@@ -604,15 +620,18 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
                     result_arr.At(j).SetBinContent(i, fgaus_eta_model.GetParameter(j))
                     result_arr.At(j).SetBinError(i, fgaus_eta_model.GetParError(j))
             fgaus_eta_model.Draw("same")
-
             can.Modified()
             can.Update()
             # input("Press enter to continue")
+        ptlabel.Draw()
+        tit.Draw()
         draw_nice_canvas("etaAlignment")
         draw_nice_frame(None, result_arr.At(1), [-100, 100], result_arr.At(1), "ps")
         result_arr.At(1).Draw("SAME")
         result_arr.At(2).Draw("same")
         leg.Draw()
+        ptlabel.Draw()
+        tit.Draw()
 
     # Time alignment and resolution vs phi for eta slices
     if 1:
@@ -992,7 +1011,8 @@ if __name__ == "__main__":
     parser.add_argument("--jobs", "-j", default=4, type=int, help="Number of multithreading jobs")
     parser.add_argument("--tag", "-t", default="", help="Tag to use for the output file name")
     parser.add_argument("--replay_mode", "--replay", action="store_true", help="Replay previous output")
-    parser.add_argument("--label", "-l", help="Label to put on plots")
+    parser.add_argument("--label", "-l", help="Label to put on plots", nargs="+", default=[""])
+    parser.add_argument("--draw_correlation_evtime_ft0_tof", action="store_true", help="do_draw_correlation_evtime_ft0_tof")
     args = parser.parse_args()
     EnableImplicitMT(args.jobs)
     if args.background:
@@ -1003,4 +1023,5 @@ if __name__ == "__main__":
          replay_mode=args.replay_mode,
          max_files=args.maxfiles,
          out_file_name=f"/tmp/TOFRESO{args.tag}.root",
-         label=args.label)
+         label=" ".join(args.label).strip(),
+         do_draw_correlation_evtime_ft0_tof=args.draw_correlation_evtime_ft0_tof)

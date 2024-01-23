@@ -468,7 +468,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             gmean.Draw("LPsame")
             draw_nice_canvas("sigma"+name, replace=False)
             sigma.Draw()
-            gmean.SaveAs(f"/tmp/gmean_{name}.root")
+            gmean.Clone("ccdb_object").SaveAs(f"/tmp/gmean_{name}.root")
             return mean, sigma, h_vs_eta, gmean
 
         neg = fitcharge(hneg, "Neg")

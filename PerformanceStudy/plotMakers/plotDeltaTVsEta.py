@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Plot the delta T vs eta and its resolution
+Plot the delta T vs eta and its resolution.
 """
 
 if 1:
@@ -154,10 +154,10 @@ def process_phiintegrated(histograms):
 
 
 def main(fnames=["/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root"],
-         process_integrated=True):
+         process_eta_integrated=True):
     single_output = {}
 
-    def process_one(fname):
+    def process_one_file(fname):
         print(fname)
         h = []
         h_phi_integrated = []
@@ -167,41 +167,42 @@ def main(fnames=["/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root"],
                 h.append(fin.Get(i.GetName()))
             elif "DeltaPiT0AC_vs_fEta" in i.GetName():
                 h_phi_integrated.append(fin.Get(i.GetName()))
-        if process_integrated:
+        if process_eta_integrated:
             single_output[fname] = process_phiintegrated(h_phi_integrated)
         else:
             process(h)
     for i in fnames:
-        process_one(i)
+        process_one_file(i)
 
-    meandrawn = {}
-    sigmadrawn = {}
-    if len(fnames) > 1:
-        colors = make_color_range(len(fnames))
+    if not process_eta_integrated:
+        meandrawn = {}
+        sigmadrawn = {}
+        if len(fnames) > 1:
+            colors = make_color_range(len(fnames))
 
-        draw_nice_frame(draw_nice_canvas("comparisonMean"), [-1, 1], [-100, 100], "#eta", "#mu (ps)")
-        leg = draw_nice_legend(x=[0.55, 0.87],
-                               y=[0.28, 0.5])
-        for n, i in enumerate(single_output):
-            hd = single_output[i][0].DrawCopy("same")
-            hd.SetLineColor(colors[n])
-            hd.SetMarkerColor(colors[n])
-            hd.SetTitle(i.split("_")[1])
-            hd.SetDirectory(0)
-            meandrawn[i] = hd
-            leg.AddEntry(hd)
-            if leg.GetHeader() == "":
-                leg.SetHeader("{} {}".format(i.split("_")[2].replace("pt", "#it{p}_{T} = ["), i.split("_")[3].replace(".root", "] GeV/#it{c}")))
+            draw_nice_frame(draw_nice_canvas("comparisonMean"), [-1, 1], [-100, 100], "#eta", "#mu (ps)")
+            leg = draw_nice_legend(x=[0.55, 0.87],
+                                   y=[0.28, 0.5])
+            for n, i in enumerate(single_output):
+                hd = single_output[i][0].DrawCopy("same")
+                hd.SetLineColor(colors[n])
+                hd.SetMarkerColor(colors[n])
+                hd.SetTitle(i.split("_")[1])
+                hd.SetDirectory(0)
+                meandrawn[i] = hd
+                leg.AddEntry(hd)
+                if leg.GetHeader() == "":
+                    leg.SetHeader("{} {}".format(i.split("_")[2].replace("pt", "#it{p}_{T} = ["), i.split("_")[3].replace(".root", "] GeV/#it{c}")))
 
-        draw_nice_frame(draw_nice_canvas("comparisonSigma"), [-1, 1], [0, 150], "#eta", "#sigma (ps)")
-        for n, i in enumerate(single_output):
-            hd = single_output[i][1].DrawCopy("same")
-            hd.SetLineColor(colors[n])
-            hd.SetMarkerColor(colors[n])
-            hd.SetTitle(i.split("_")[1])
-            hd.SetDirectory(0)
-            sigmadrawn[i] = hd
-        leg.Draw()
+            draw_nice_frame(draw_nice_canvas("comparisonSigma"), [-1, 1], [0, 150], "#eta", "#sigma (ps)")
+            for n, i in enumerate(single_output):
+                hd = single_output[i][1].DrawCopy("same")
+                hd.SetLineColor(colors[n])
+                hd.SetMarkerColor(colors[n])
+                hd.SetTitle(i.split("_")[1])
+                hd.SetDirectory(0)
+                sigmadrawn[i] = hd
+            leg.Draw()
 
     if 0:
         csofia = get_from_file("/tmp/SigmaEtaPhi.root", "c1")
@@ -224,5 +225,7 @@ if __name__ == "__main__":
     parser = get_default_parser(__doc__)
     parser.add_argument("--input", "-i", default=["/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root"],
                         nargs="+", help="Input file name")
+    parser.add_argument("--process-eta-integrated", "-e", action="store_true")
     args = parser.parse_args()
-    main(fnames=args.input)
+    main(fnames=args.input,
+         process_eta_integrated=args.process_eta_integrated)

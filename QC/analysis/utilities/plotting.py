@@ -176,6 +176,7 @@ def set_nice_frame(h, notitle=False):
     h.GetYaxis().SetTitleSize(0.04)
     h.GetYaxis().SetTitleOffset(1.6)
     h.GetXaxis().SetTitleSize(0.04)
+    h.GetXaxis().SetLabelOffset(0.01)
     h.GetXaxis().SetTitleOffset(1.25)
 
 

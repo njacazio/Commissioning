@@ -62,8 +62,10 @@ def set_verbose_mode(parser, force=False, bkgmode=True):
         if parser.background:
             gROOT.SetBatch(True)
 
+
 def is_verbose_mode():
     return verbose_mode
+
 
 class bcolors:
     # Colors for bash
@@ -126,6 +128,11 @@ def get_default_parser(description):
     #                     default=10,
     #                     help="Number of concurrent jobs, by default 10.")
     return parser
+
+
+def wait_for_input():
+    if not gROOT.IsBatch():
+        input("Press enter to exit")
 
 
 def run_cmd(cmd, comment="", check_status=True, log_file=None, print_output=False, time_it=False, throw_fatal=True):

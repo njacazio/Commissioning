@@ -5,8 +5,8 @@ Script to compute the intrinsic TOF resolution from TOF skimmed data produced wi
 """
 
 import ROOT
-from ROOT import TFile, TChain, TTree, TH1, o2, gInterpreter, TMath, EnableImplicitMT, gROOT, gPad, TColor, gStyle, TF1, TObjArray, gROOT
-from ROOT.RDF import TH2DModel, TH1DModel
+from ROOT import TFile, TChain, TTree, TH1, o2, gInterpreter, TMath, EnableImplicitMT, gROOT, gPad, TColor, gStyle, TF1, TObjArray, gROOT, TH1F, TH2F
+from ROOT.RDF import TH2DModel, TH1DModel, RSnapshotOptions
 from plotting import draw_nice_canvas, update_all_canvases, set_nice_frame, draw_label
 from common import get_default_parser, set_verbose_mode, verbose_msg, is_verbose_mode
 from debugtrack import *
@@ -16,6 +16,11 @@ from numpy import sqrt
 import tqdm
 import sys
 import queue
+import multiprocessing
+import time
+import pandas
+import uproot
+import awkward as ak
 
 
 histograms = {}
@@ -117,13 +122,46 @@ def makehisto(input_dataframe,
     return h
 
 
+newhistograms = {"hDelta": TH2F("delta", "delta;Pt;#Delta", 1, 0.95, 1.05, 2000, -10000, 10000)}
+
+
+def pre_pre_process_frame(filename_and_treename):
+    start_time = time.process_time()
+    filename = filename_and_treename[0]
+    treename = filename_and_treename[1]
+    structured_tree = uproot.open(filename)[treename]
+    keys = list(structured_tree.keys())
+    df = structured_tree.arrays(keys, library='pd')
+    df = df[df["fLength"] > 0.1]  # Selecting tracks with TOF
+    df = df[(df["fHasTRD"] == False) | (df["fLastTRDCluster"] >= 5)]  # Selecting tracks without TRD or with 5 TRD clusters
+    grouped_df = df.groupby("fIndexCollisions")
+    h = newhistograms["hDelta"]
+
+    print("Tracks per collisions:", grouped_df.size().sum(), sep=" \n")
+    for collision_index, df_in_collision in tqdm.tqdm(grouped_df, bar_format='         Collision index loop filtering {l_bar}{bar:10}{r_bar}{bar:-10b}'):
+        df_reference = df_in_collision[(df_in_collision["fP"] > 0.95) & (df_in_collision["fP"] < 1.05)]
+        reference_diff = []
+        for trk_index, trk in df_in_collision.iterrows():
+            reference_diff.append([])
+            for trk_ref_index, trk_ref in df_reference.iterrows():
+                if trk_index == trk_ref_index:
+                    continue
+                reference_diff[-1].append(trk["fTOFSignal"] - trk_ref["fTOFSignal"])
+                # h.Fill(trk["fP"], trk["fTOFSignal"] - trk_ref["fTOFSignal"])
+        df_in_collision["Diff"] = reference_diff
+        print(df_in_collision)
+        # dataframe = ROOT.RDF.FromNumpy(df_in_collision["Diff"])
+
+    return {"ProcessingTime": time.process_time() - start_time, "hDelta": h}
+
+
 def pre_process_frame(filename,
                       treename,
                       outpath="/tmp/toftrees2",
-                      overwrite=False,
+                      overwrite=True,
                       make_histo=False):
     dataframe = ROOT.RDataFrame(treename, filename)
-    treename = treename.split("/")[0]
+    df_name = treename.split("/")[0]
     dataframe = dataframe.Define("ExpTimePi", "ComputeExpectedTimePi(fTOFExpMom, fLength)")
     dataframe = dataframe.Define("TMinusTExpPi", "fTOFSignal - ExpTimePi")
     dataframe = dataframe.Define("DeltaPi", "TMinusTExpPi - fEvTimeT0AC")
@@ -132,74 +170,94 @@ def pre_process_frame(filename,
     # dataframe = dataframe.Define("BetaEvTimeTOF", "fLength / (fTOFSignal - fEvTimeTOF) / kCSPEED")
     # dataframe = dataframe.Define("BetaEvTimeT0AC", "fLength / (fTOFSignal - fEvTimeT0AC) / kCSPEED")
     # dataframe = dataframe.Filter("fP < 10")
-    dataframe = dataframe.Filter("fP > 0.5")
+    # dataframe = dataframe.Filter("fP > 0.5")
     # dataframe = dataframe.Filter("fPt < 1.1")
     # dataframe = dataframe.Filter("fPt > 1.0")
-    dataframe = dataframe.Filter("fTOFSignal > 0")
-    dataframe = dataframe.Filter("fTOFChi2 > 0")
     # dataframe = dataframe.Filter("fTOFChi2 < 3")
     # dataframe = dataframe.Filter("abs(fEta) < 0.1")
+    dataframe = dataframe.Filter("fTOFSignal > 0")
+    dataframe = dataframe.Filter("fTOFChi2 > 0")
     dataframe = dataframe.Filter("HasTOF == true")
+    dataframe = dataframe.Filter("fHasTRD == 0")
     ntracks = dataframe.Count().GetValue()
-    verbose_msg("Tracks in sample:", ntracks)
+    verbose_msg("Tracks in sample", df_name, f": {ntracks}")
     if ntracks <= 0:
+        del dataframe
         return
 
-    collision_indices = dataframe.AsNumpy(["fIndexCollisions"])
-    # print(collision_indices)
-    collision_indices = np.unique(collision_indices["fIndexCollisions"])
-    # print(collision_indices)
+    # collision_indices = dataframe.AsNumpy(["fIndexCollisions"])
+    # # print(collision_indices)
+    # collision_indices = np.unique(collision_indices["fIndexCollisions"])
+    # # print(collision_indices)
     if make_histo:
         ptbins = [100, 0, 5]
         deltapibins = [1000, -1000, 1000]
         makehisto(input_dataframe=dataframe, x="fP", y="DeltaPi", xr=ptbins, yr=deltapibins, xt="p (GeV/c)", yt="#Delta#pi (ps)")
 
     out_path = os.path.join(outpath, os.path.basename(filename).replace(".root", ""))
-    if not overwrite and os.path.exists(out_path) and len(os.listdir(out_path)) == len(collision_indices):
-        verbose_msg("All files exist, skipping:", filename)
-        return
-    for i in collision_indices:
-        out_file = os.path.join(out_path, f"intermediate_{treename}_collid{i}.root")
+    reference_tracks = dataframe.Filter("fP > 0.95 && fP < 1.05").AsNumpy(["TMinusTExpPi", "fP", "fPt", "fEta", "fPhi", "rdfentry_", "fIndexCollisions"])
+    for trk_index, rdfentry_ in enumerate(reference_tracks["rdfentry_"]):
+        col_index = reference_tracks["fIndexCollisions"][trk_index]
+        verbose_msg("Processing collision", col_index, "track", trk_index, "of", len(reference_tracks["rdfentry_"]), "in", df_name)
+        out_file = os.path.join(out_path, f"intermediate_{df_name}_collid{col_index}_reftrk{rdfentry_}.root")
         if not os.path.exists(os.path.dirname(out_file)):
             os.makedirs(os.path.dirname(out_file))
         if os.path.exists(out_file) and not overwrite:
-            verbose_msg("File exists, skipping:", out_file)
+            verbose_msg("File", out_file, "exists, skipping:", out_file)
             continue
-        df_same_collision = dataframe.Filter(f"fIndexCollisions == {i}")
-        ref_index = 0
-        reference_track = df_same_collision.Range(ref_index, ref_index).AsNumpy(["TMinusTExpPi", "rdfentry_"])
-        reference_time = reference_track["TMinusTExpPi"][ref_index]
-        reference_index = reference_track["rdfentry_"][ref_index]
-        df_same_collision = df_same_collision.Filter(f"rdfentry_ != {reference_index}")
-        df_same_collision = df_same_collision.Define("DeltaInEvent", f"TMinusTExpPi - {reference_time}")
-        if df_same_collision.Count().GetValue() <= 0:
+        df_wrt_to_reference = dataframe.Filter(f"fIndexCollisions == {col_index:.0f} && rdfentry_ != {rdfentry_:.0f}")
+        verbose_msg("Size of df_wrt_to_reference:", df_wrt_to_reference.Count().GetValue(), "wrt", dataframe.Count().GetValue())
+        if dataframe.Count().GetValue() <= 0:
             continue
-        df_same_collision.Snapshot("O2skimmedtof", out_file, ["fP", "DeltaInEvent"])
+        df_wrt_to_reference = df_wrt_to_reference.Define("DeltaInEvent", "TMinusTExpPi - {}".format(reference_tracks["TMinusTExpPi"][trk_index]))
+        df_wrt_to_reference = df_wrt_to_reference.Define("DeltaP", "fP - {}".format(reference_tracks["fP"][trk_index]))
+        df_wrt_to_reference = df_wrt_to_reference.Define("DeltaPt", "fPt - {}".format(reference_tracks["fPt"][trk_index]))
+        df_wrt_to_reference = df_wrt_to_reference.Define("DeltaEta", "fEta - {}".format(reference_tracks["fEta"][trk_index]))
+        df_wrt_to_reference = df_wrt_to_reference.Define("DeltaPhi", "fPhi - {}".format(reference_tracks["fPhi"][trk_index]))
+        df_wrt_to_reference.Snapshot("O2skimmedtof", out_file)
+        # dataframe.Snapshot("O2skimmedtof", out_file, ["fP", "DeltaInEvent"])
         if make_histo:
-            makehisto(input_dataframe=df_same_collision, x="fP", y="DeltaInEvent", xr=ptbins, yr=deltapibins, xt="p (GeV/c)", yt="#DeltaRef (ps)")
-        del df_same_collision
+            makehisto(input_dataframe=dataframe, x="fP", y="DeltaInEvent", xr=ptbins, yr=deltapibins, xt="p (GeV/c)", yt="#DeltaRef (ps)")
+        del df_wrt_to_reference
+    del reference_tracks
     del dataframe
 
 
 def post_process_frame(dataframe):
-    gROOT.ProcessLine( "gErrorIgnoreLevel = 1001;")
+    gROOT.ProcessLine("gErrorIgnoreLevel = 1001;")
     ptbins = [100, 0, 5]
     deltapibins = [1000, -1000, 1000]
-    print("Post processing", dataframe.Count().GetValue(), "tracks")
-    h2 = makehisto(input_dataframe=dataframe, x="fP", y="DeltaInEvent", xr=ptbins, yr=deltapibins,
-                   xt="p (GeV/c)", yt="#Delta(#pi) - #Delta(#pi)_{ref} (ps)", draw=True)
+    before_cuts = dataframe.Count().GetValue()
+    # dataframe = dataframe.Filter("TMath::Abs(DeltaEta) < 0.5")
+    # dataframe = dataframe.Filter("TMath::Abs(DeltaEta) < 0.5")
+    # dataframe = dataframe.Filter("TMath::Abs(DeltaPhi) < 0.5")
+    # dataframe = dataframe.Filter("TMath::Abs(DeltaP) < 0.1")
+    # dataframe = dataframe.Filter("fHasTRD == 0 || fLastTRDCluster >= 5")
+    dataframe = dataframe.Filter("fHasTRD == 0")
+    print("Post processing", dataframe.Count().GetValue(), "tracks after cuts, before:", before_cuts)
+    h2 = makehisto(input_dataframe=dataframe, x="DeltaEta", y="DeltaInEvent", xr=[100, -1, 1], yr=deltapibins,
+                   xt="#Delta_{#eta}", yt="#Delta(#pi) - #Delta(#pi)_{ref} (ps)", draw=True)
+    h2 = makehisto(input_dataframe=dataframe, x="DeltaPhi", y="DeltaInEvent", xr=[100, -1, 1], yr=deltapibins,
+                   xt="#Delta_{#varphi}", yt="#Delta(#pi) - #Delta(#pi)_{ref} (ps)", draw=True)
+    h2 = makehisto(input_dataframe=dataframe, x="DeltaP", y="DeltaInEvent", xr=[100, -1, 1], yr=deltapibins,
+                   xt="#Delta_{#it{p}} (GeV/c)", yt="#Delta(#pi) - #Delta(#pi)_{ref} (ps)", draw=True)
+    h2 = makehisto(input_dataframe=dataframe, x="fP", y="DeltaInEvent", xr=ptbins, yr=[2000, -10000, 10000],
+                   xt="#it{p} (GeV/c)", yt="#Delta(#pi) - #Delta(#pi)_{ref} (ps)", draw=True)
     fitres = TObjArray()
-    proj_bin = [0.5, 2.2]
-    b = [h2.GetXaxis().FindBin(proj_bin[0]), h2.GetXaxis().FindBin(proj_bin[1])]
+    proj_bin = [0.95, 1.049]
+    b = [h2.GetXaxis().FindBin(proj_bin[0]),
+         h2.GetXaxis().FindBin(proj_bin[1])]
 
-    h2.FitSlicesY (TF1("fgaus", "gaus", -300, 300), *b, 0, "QNR", fitres)
+    h2.FitSlicesY(TF1("fgaus", "gaus", -300, 300), -1, -1, 0, "QNR", fitres)
     fitres[1].Draw("same")
     fitres[2].Draw("same")
+    for i in fitres:
+        i.SetLineWidth(2)
 
     hp = h2.ProjectionY("hp", *b)
     hp.Rebin(4)
     hp.SetBit(TH1.kNoTitle)
-    hp.SetBit(TH1.kNoStats)
+    # hp.SetBit(TH1.kNoStats)
     fgaus = TF1("fgaus", "gaus", -600, 600)
     fgaus.SetParameter(0, hp.GetMaximum())
     fgaus.SetParameter(1, hp.GetXaxis().GetBinCenter(hp.GetMaximumBin()))
@@ -234,38 +292,69 @@ def get_trees_from_file(file_name="/tmp/toftrees/AnalysisResults_trees_V0S_0.roo
 def main(filenames,
          do_preprocessing=True,
          do_postprocessing=False,
-         process_in_parallel=True):
+         process_in_parallel=True,
+         jobs=1,
+         overwrite=False,
+         n_df_to_process=1):
     if len(filenames) > 1 and process_in_parallel and do_preprocessing:
         with open("/tmp/listofinput.txt", "w") as f:
             for i in filenames:
-                f.write(f"{sys.argv[0]} {i} --preprocess\n")
+                f.write(f"{sys.argv[0]} {i} --jobs 1 --preprocess\n")
         print("Processing in parallel")
         # os.system(f"time parallel -j 4 python {sys.argv[0]} --preprocess --postprocess --filelist listofinput.txt --file {{}}")
-        print(f"time parallel --progress -j 4 -a /tmp/listofinput.txt\n")
+        print(f"time parallel --progress -j {jobs} -a /tmp/listofinput.txt\n")
         return
 
     if do_preprocessing:
+
+        EnableImplicitMT(5)
+        # EnableImplicitMT(jobs)
         # First build the list of TTrees
+        start_time = time.process_time()
         trees = {}
         for i in filenames:
             trees[i] = get_trees_from_file(file_name=i, print_branch_names=(i == filenames[0]))
+        verbose_msg(f"Found {len(trees)} files with {sum([len(trees[i]) for i in trees])} trees in {time.process_time() - start_time:.2f} s")
         # Linearize it
         list_of_trees = []
+        do_break = False
         for i in trees:
             for j in trees[i]:
                 list_of_trees.append((i, j))
-        for i in tqdm.tqdm(list_of_trees, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}'):
+                if n_df_to_process > 0 and len(list_of_trees) >= n_df_to_process:
+                    do_break = True
+                    break
+            if do_break:
+                break
+
+        if jobs > 1:
             try:
-                pre_process_frame(filename=i[0], treename=i[1])
+                with multiprocessing.Pool(processes=jobs) as pool:
+                    tqdm.tqdm(pool.imap(pre_pre_process_frame, list_of_trees),
+                              total=len(list_of_trees),
+                              bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
             except KeyboardInterrupt:
                 print("Keyboard interrupt")
-                break
+        else:
+            results = []
+            for i in tqdm.tqdm(list_of_trees, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}'):
+                try:
+                    results.append(pre_pre_process_frame(i))
+                except KeyboardInterrupt:
+                    print("Keyboard interrupt")
+                    break
+            # print(f"Total processing time: {total_processing_time:.2f} s")
+            for i in newhistograms:
+                can = draw_nice_canvas(f"can{i}", logz=True)
+                newhistograms[i].Draw("COLZ")
+                can.Update()
+            input("Press enter to continue")
         for i in histograms:
             draw_nice_canvas(i, logz=True)
             histograms[i].Draw("COLZ")
 
     if do_postprocessing:
-        EnableImplicitMT(5)
+        EnableImplicitMT(jobs)
         post_process_frame(ROOT.RDataFrame("O2skimmedtof", filenames))
 
     update_all_canvases()
@@ -280,6 +369,14 @@ if __name__ == "__main__":
     parser.add_argument("filenames", nargs="+", help="Input files")
     parser.add_argument("--preprocess", action="store_true", help="Run the preprocessing")
     parser.add_argument("--postprocess", action="store_true", help="Run the postprocessing")
+    parser.add_argument("--jobs", "-j", default=4, type=int, help="Number of jobs to run with")
+    parser.add_argument("--n_df_to_process", "-n", default=-1, type=int, help="Number of DFs to process")
+    parser.add_argument("--overwrite", "-o", action="store_true", help="Overwrite existing files")
     args = parser.parse_args()
     set_verbose_mode(args)
-    main(args.filenames, do_preprocessing=args.preprocess, do_postprocessing=args.postprocess)
+    main(args.filenames,
+         do_preprocessing=args.preprocess,
+         do_postprocessing=args.postprocess,
+         jobs=args.jobs,
+         n_df_to_process=args.n_df_to_process,
+         overwrite=args.overwrite)

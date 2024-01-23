@@ -91,12 +91,6 @@ def main(input_file_name="/tmp/AO2D.root",
     #     part = {"El": "e", "Mu": "#mu", "Ka": "K", "Pr": "p"}[i]
     #     makehisto(df, x="fP", y="DeltaPi" + i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
     #     makehisto(df, x="fPt", y="DeltaPi" + i, xr=ptaxis, yr=tminustexpaxis, yt="t_{exp}(#pi) - t_{exp}(%s)" % part, title="t_{exp}(#pi) - t_{exp}(%s)" % part)
-    # if 0:
-    #     df = df.Filter(f"fPt>{minPt}")
-    #     df = df.Filter(f"fPt<{maxPt}")
-    # else:
-    #     df = df.Filter(f"fP>{minPt}")
-    #     df = df.Filter(f"fP<{maxPt}")
     makehisto(df, x="fPhi", y="DeltaPiT0AC", z="fEta", xr=phiaxis, yr=deltaaxis, zr=etaaxis)
 
     histograms = get_histogram()
@@ -106,6 +100,11 @@ def main(input_file_name="/tmp/AO2D.root",
     update_all_canvases()
     input("Press enter to continue")
 
+    if positives:
+        out_file_name = out_file_name.replace(".root", "_pos.root")
+    else:
+        out_file_name = out_file_name.replace(".root", "_neg.root")
+    out_file_name = out_file_name.replace(".root", f"_pt{eta_pt_range[0]:.2f}_{eta_pt_range[1]:.2f}.root")
     print("Writing output to", out_file_name)
     fout = TFile(out_file_name, "RECREATE")
     fout.cd()
@@ -124,7 +123,8 @@ def main(input_file_name="/tmp/AO2D.root",
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="Input file name", nargs="+")
-    parser.add_argument("--jobs", "-j", default=4, type=int, help="Number of multithreading jobs")
+    parser.add_argument("--jobs", "-j", default=5, type=int, help="Number of multithreading jobs")
+    parser.add_argument("--neg", action="store_true", help="Positive tracks")
     args = parser.parse_args()
     EnableImplicitMT(args.jobs)
-    main(input_file_name=args.filename)
+    main(input_file_name=args.filename, positives=args.pos)
