@@ -1,73 +1,73 @@
 {
+  "dataSamplingPolicies": [],
   "qc": {
     "config": {
-      "database": {
-        "implementation": "CCDB",
-        "host": "alio2-cr1-hv-qcdb1.cern.ch:8083",
-        "username": "not_applicable",
-        "password": "not_applicable",
-        "name": "not_applicable"
-      },
       "Activity": {
         "number": "42",
         "type": "2"
       },
-      "monitoring": {
-        "url": "influxdb-unix:///tmp/telegraf.sock"
-      },
-      "consul": {
-        "url": "http://localhost:8500"
+      "bookkeeping": {
+        "url": "alio2-cr1-hv-web01.cern.ch:4001"
       },
       "conditionDB": {
         "url": "alio2-cr1-hv-qcdb1.cern.ch:8083"
       },
-      "bookkeeping": {
-        "url": "alio2-cr1-hv-web01.cern.ch:4001"
+      "consul": {
+        "url": "http://localhost:8500"
+      },
+      "database": {
+        "host": "alio2-cr1-hv-qcdb1.cern.ch:8083",
+        "implementation": "CCDB",
+        "name": "not_applicable",
+        "password": "not_applicable",
+        "username": "not_applicable"
+      },
+      "monitoring": {
+        "url": "influxdb-unix:///tmp/telegraf.sock"
       }
     },
     "tasks": {
       "MergeMETOF": {
         "active": "enable",
         "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
         "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
         "dataSource": {
-          "type": "direct",
+          "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0",
           "query_comment": "checking every matched track",
-          "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0"
+          "type": "direct"
         },
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29750",
-        "mergingMode": "delta",
-        "localControl": "odc",
-        "taskParameters": {
-          "GID": "ITS-TPC,ITS-TPC-TOF,TPC",
-          "verbose": "false",
-          "minPtCut": "0.3f",
-          "etaCut": "0.8f",
-          "minNTPCClustersCut": "60",
-          "minDCACut": "100.f",
-          "minDCACutY": "10.f"
-        },
+        "detectorName": "TOF",
         "grpGeomRequest": {
-          "geomRequest": "Aligned",
           "askGRPECS": "false",
           "askGRPLHCIF": "false",
           "askGRPMagField": "true",
           "askMatLUT": "false",
-          "askTime": "false",
           "askOnceAllButField": "false",
+          "askTime": "false",
+          "geomRequest": "Aligned",
           "needPropagatorD": "false"
+        },
+        "localControl": "odc",
+        "localMachines": [
+          "epn",
+          "localhost"
+        ],
+        "location": "local",
+        "maxNumberCycles": "-1",
+        "mergingMode": "delta",
+        "moduleName": "QcTOF",
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
+        "remotePort": "29750",
+        "taskParameters": {
+          "GID": "ITS-TPC,ITS-TPC-TOF,TPC",
+          "etaCut": "0.8f",
+          "minDCACut": "100.f",
+          "minDCACutY": "10.f",
+          "minNTPCClustersCut": "60",
+          "minPtCut": "0.3f",
+          "verbose": "false"
         }
       }
     }
-  },
-  "dataSamplingPolicies": []
+  }
 }
