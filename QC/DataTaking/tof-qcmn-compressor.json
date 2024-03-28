@@ -16,10 +16,13 @@
         "url": "influxdb-unix:///tmp/telegraf.sock"
       },
       "consul": {
-        "url": "http://ali-consul.cern.ch:8500"
+        "url": "http://localhost:8500"
       },
       "conditionDB": {
-        "url": "http://localhost:8084"
+        "url": "o2-ccdb.internal"
+      },
+      "bookkeeping": {
+        "url": "alio2-cr1-hv-web01.cern.ch:4001"
       }
     },
     "tasks": {
@@ -47,7 +50,7 @@
           "alio2-cr1-flp179"
         ],
         "remoteMachine": "anything",
-        "remotePort": "30132",
+        "remotePort": "29752",
         "mergingMode": "delta"
       }
     },

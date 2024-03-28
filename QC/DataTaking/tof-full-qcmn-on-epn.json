@@ -25,70 +25,6 @@
       }
     },
     "tasks": {
-      "MergeMETOF": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "dataSource": {
-          "type": "dataSamplingPolicy",
-          "name": "trk-clu-local"
-        },
-        "taskParameters": {
-          "GID": "ITS-TPC,ITS-TPC-TOF,TPC",
-          "verbose": "false",
-          "minPtCut": "0.3f",
-          "etaCut": "0.8f",
-          "minNTPCClustersCut": "60",
-          "minDCACut": "100.f",
-          "minDCACutY": "10.f",
-          "grpFileName": "o2sim_grp.root",
-          "geomFileName": "o2sim_geometry-aligned.root"
-        },
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29750",
-        "mergingMode": "delta",
-        "localControl": "odc"
-      },
-      "MergeMETOFwTRD": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "dataSource": {
-          "type": "dataSamplingPolicy",
-          "name": "trkWTRD-local"
-        },
-        "taskParameters": {
-          "GID": "ITS-TPC,ITS-TPC-TRD,ITS-TPC-TOF,ITS-TPC-TRD-TOF,TPC",
-          "verbose": "false",
-          "minPtCut": "0.3f",
-          "etaCut": "0.8f",
-          "minNTPCClustersCut": "60",
-          "minDCACut": "100.f",
-          "minDCACutY": "10.f",
-          "grpFileName": "o2sim_grp.root",
-          "geomFileName": "o2sim_geometry-aligned.root"
-        },
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29753",
-        "mergingMode": "delta",
-        "localControl": "odc"
-      },
       "TaskRaw": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::TaskRaw",
@@ -132,7 +68,18 @@
           "PerChannel": "True",
           "RangeMaxMultiplicity": "20000",
           "NbinsMultiplicity": "20000",
-          "NoiseClassSelection": "0"
+          "applyCalib": "True",
+          "NoiseClassSelection": "1"
+        },
+        "grpGeomRequest": {
+          "geomRequest": "Aligned",
+          "askGRPECS": "false",
+          "askGRPLHCIF": "false",
+          "askGRPMagField": "false",
+          "askMatLUT": "false",
+          "askTime": "false",
+          "askOnceAllButField": "false",
+          "needPropagatorD": "false"
         },
         "location": "local",
         "localMachines": [
@@ -151,7 +98,7 @@
     },
     "postprocessing": {
       "TOFTrendingRate": {
-        "active": "false",
+        "active": "true",
         "className": "o2::quality_control_modules::tof::TrendingRate",
         "moduleName": "QcTOF",
         "detectorName": "TOF",
@@ -296,6 +243,23 @@
           }
         ]
       },
+      "CheckSlotPartMask": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::CheckSlotPartMask",
+        "moduleName": "QcTOF",
+        "detectorName": "TOF",
+        "policy": "OnAny",
+        "checkParameters": {},
+        "dataSource": [
+          {
+            "type": "Task",
+            "name": "TaskRaw",
+            "MOs": [
+              "hSlotPartMask"
+            ]
+          }
+        ]
+      },
       "CheckRawMultiplicity": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::CheckRawMultiplicity",
@@ -319,23 +283,6 @@
               "Multiplicity/SectorOA",
               "Multiplicity/SectorIC",
               "Multiplicity/SectorOC"
-            ]
-          }
-        ]
-      },
-      "CheckSlotPartMask": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckSlotPartMask",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "policy": "OnAny",
-        "checkParameters": {},
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskRaw",
-            "MOs": [
-              "hSlotPartMask"
             ]
           }
         ]
@@ -433,38 +380,6 @@
         {
           "condition": "random",
           "fraction": "0.1",
-          "seed": "1234"
-        }
-      ],
-      "blocking": "false"
-    },
-    {
-      "id": "trkWTRD-local",
-      "active": "true",
-      "machines": [
-        "mustbenomachine"
-      ],
-      "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0;trackITSTPCTRD:TRD/MATCH_ITSTPC/0;matchITSTPCTRDTOF:TOF/MTC_ITSTPCTRD/0;trigITSTPCTRD:TRD/TRGREC_ITSTPC/0",
-      "samplingConditions": [
-        {
-          "condition": "random",
-          "fraction": "1.0",
-          "seed": "1234"
-        }
-      ],
-      "blocking": "false"
-    },
-    {
-      "id": "trk-clu-local",
-      "active": "true",
-      "machines": [
-        "mustbenomachine"
-      ],
-      "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0",
-      "samplingConditions": [
-        {
-          "condition": "random",
-          "fraction": "1.0",
           "seed": "1234"
         }
       ],

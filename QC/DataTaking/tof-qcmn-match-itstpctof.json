@@ -16,15 +16,18 @@
         "url": "influxdb-unix:///tmp/telegraf.sock"
       },
       "consul": {
-        "url": "alio2-cr1-hv-aliecs:8500"
+        "url": "http://localhost:8500"
       },
       "conditionDB": {
         "url": "alio2-cr1-hv-qcdb1.cern.ch:8083"
+      },
+      "bookkeeping": {
+        "url": "alio2-cr1-hv-web01.cern.ch:4001"
       }
     },
     "tasks": {
-      "MatchingTOFnoTRD": {
-        "active": "true",
+      "MergeMETOF": {
+        "active": "enable",
         "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
         "moduleName": "QcTOF",
         "detectorName": "TOF",
@@ -41,7 +44,7 @@
           "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0"
         },
         "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "47710",
+        "remotePort": "29750",
         "mergingMode": "delta",
         "localControl": "odc",
         "taskParameters": {
@@ -51,9 +54,17 @@
           "etaCut": "0.8f",
           "minNTPCClustersCut": "60",
           "minDCACut": "100.f",
-          "minDCACutY": "10.f",
-          "grpFileName": "o2sim_grp.root",
-          "geomFileName": "o2sim"
+          "minDCACutY": "10.f"
+        },
+        "grpGeomRequest": {
+          "geomRequest": "Aligned",
+          "askGRPECS": "false",
+          "askGRPLHCIF": "false",
+          "askGRPMagField": "true",
+          "askMatLUT": "false",
+          "askTime": "false",
+          "askOnceAllButField": "false",
+          "needPropagatorD": "false"
         }
       }
     }

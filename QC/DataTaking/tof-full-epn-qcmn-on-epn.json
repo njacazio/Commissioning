@@ -49,8 +49,7 @@
         },
         "location": "local",
         "localMachines": [
-          "epn",
-          "localhost"
+          "mustbenomachine"
         ],
         "remoteMachine": "alio2-cr1-qc03.cern.ch",
         "remotePort": "29750",
@@ -81,8 +80,7 @@
         },
         "location": "local",
         "localMachines": [
-          "epn",
-          "localhost"
+          "mustbenomachine"
         ],
         "remoteMachine": "alio2-cr1-qc03.cern.ch",
         "remotePort": "29753",
@@ -109,12 +107,13 @@
         },
         "location": "local",
         "localMachines": [
-          "alio2-cr1-flp178",
-          "alio2-cr1-flp179"
+          "epn",
+          "localhost"
         ],
-        "remoteMachine": "localhost",
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
         "remotePort": "29752",
-        "mergingMode": "delta"
+        "mergingMode": "delta",
+        "localControl": "odc"
       },
       "TaskDigits": {
         "active": "true",
@@ -130,9 +129,20 @@
         },
         "taskParameters": {
           "PerChannel": "True",
-          "RangeMaxMultiplicity": "20000",
-          "NbinsMultiplicity": "20000",
+          "RangeMaxMultiplicity": "1000",
+          "NbinsMultiplicity": "1000",
+          "applyCalib": "True",
           "NoiseClassSelection": "0"
+        },
+        "grpGeomRequest": {
+          "geomRequest": "Aligned",
+          "askGRPECS": "false",
+          "askGRPLHCIF": "false",
+          "askGRPMagField": "false",
+          "askMatLUT": "false",
+          "askTime": "false",
+          "askOnceAllButField": "false",
+          "needPropagatorD": "false"
         },
         "location": "local",
         "localMachines": [
@@ -142,121 +152,11 @@
         "remoteMachine": "alio2-cr1-qc03.cern.ch",
         "remotePort": "29751",
         "mergingMode": "delta",
+        "movingWindows" : ["Multiplicity/Integrated", "OrbitVsCrate"],
         "localControl": "odc",
         "mergersPerLayer": [
           "3",
           "1"
-        ]
-      }
-    },
-    "postprocessing": {
-      "TOFTrendingRate": {
-        "active": "false",
-        "className": "o2::quality_control_modules::tof::TrendingRate",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "customization": [
-          {
-            "name": "ThresholdSgn",
-            "value": "1000.0"
-          },
-          {
-            "name": "ThresholdBkg",
-            "value": "20.0"
-          }
-        ],
-        "dataSources": [
-          {
-            "type": "repository",
-            "path": "TOF/MO/TaskDigits",
-            "names": [
-              "HitMap",
-              "Multiplicity/VsBC"
-            ],
-            "reductorName": "o2::quality_control_modules::common::TH1Reductor",
-            "moduleName": "QcCommon"
-          }
-        ],
-        "plots": [
-          {
-            "name": "interaction_rate",
-            "title": "IR from TOF hits",
-            "varexp": "collisionRate:time",
-            "selection": "",
-            "option": "*L"
-          },
-          {
-            "name": "noise_rate",
-            "title": "Noise Rate per channel",
-            "varexp": "noiseRate:time",
-            "selection": "",
-            "option": "*L"
-          },
-          {
-            "name": "active_channels",
-            "title": "Active channels",
-            "varexp": "activeChannels:time",
-            "selection": "",
-            "option": "*L"
-          },
-          {
-            "name": "pile_up",
-            "title": "Pilup",
-            "varexp": "pileup:time",
-            "selection": "",
-            "option": "*L"
-          },
-          {
-            "name": "n_int_bc",
-            "title": "N Inetraction BCs",
-            "varexp": "nIBC:time",
-            "selection": "",
-            "option": "*L"
-          }
-        ],
-        "initTrigger": [
-          "userorcontrol"
-        ],
-        "updateTrigger": [
-          "newobject:qcdb:TOF/MO/TaskDigits/Multiplicity/VsBC"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
-        ]
-      },
-      "TOFTrendingHits": {
-        "active": "false",
-        "className": "o2::quality_control_modules::tof::TrendingHits",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "dataSources": [
-          {
-            "type": "repository",
-            "path": "TOF/MO/TaskDigits/Multiplicity",
-            "names": [
-              "Integrated"
-            ],
-            "reductorName": "o2::quality_control_modules::common::TH1Reductor",
-            "moduleName": "QcCommon"
-          }
-        ],
-        "plots": [
-          {
-            "name": "mean_of_hits",
-            "title": "Mean trend of TOF hits",
-            "varexp": "Integrated.mean:time",
-            "selection": "",
-            "option": "*L"
-          }
-        ],
-        "initTrigger": [
-          "userorcontrol"
-        ],
-        "updateTrigger": [
-          "newobject:qcdb:TOF/MO/TaskDigits/Multiplicity/Integrated"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
         ]
       }
     },
@@ -297,7 +197,7 @@
         ]
       },
       "CheckRawMultiplicity": {
-        "active": "true",
+        "active": "false",
         "className": "o2::quality_control_modules::tof::CheckRawMultiplicity",
         "moduleName": "QcTOF",
         "policy": "OnAny",
@@ -323,25 +223,8 @@
           }
         ]
       },
-      "CheckSlotPartMask": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckSlotPartMask",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "policy": "OnAny",
-        "checkParameters": {},
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskRaw",
-            "MOs": [
-              "hSlotPartMask"
-            ]
-          }
-        ]
-      },
       "TOFRawsTime": {
-        "active": "false",
+        "active": "true",
         "className": "o2::quality_control_modules::tof::CheckRawTime",
         "moduleName": "QcTOF",
         "policy": "OnAny",
@@ -361,7 +244,7 @@
         ]
       },
       "TOFRawsToT": {
-        "active": "false",
+        "active": "true",
         "className": "o2::quality_control_modules::tof::CheckRawToT",
         "moduleName": "QcTOF",
         "policy": "OnAny",
@@ -385,17 +268,27 @@
         ]
       },
       "CheckTOFRawHitMap": {
-        "active": "false",
+        "active": "true",
         "className": "o2::quality_control_modules::tof::CheckHitMap",
         "moduleName": "QcTOF",
         "policy": "OnAny",
         "detectorName": "TOF",
+        "checkParameters": {
+          "EnableReferenceHitMap": "true",
+          "PadLowY": "0.9",
+          "PadHighY": "1.0",
+          "PadLowX": "0.6",
+          "PadHighX": "1.0",
+          "EnablePadPerMismatch": "false",
+          "MaxRefMoreThanHit":"317",
+          "MaxHitMoreThanRef":"2"
+        },
         "dataSource": [
           {
             "type": "Task",
             "name": "TaskDigits",
             "MOs": [
-              "TOFRawHitMap"
+              "HitMapNoiseFiltered"
             ]
           }
         ]
@@ -407,8 +300,8 @@
       "id": "raw-local",
       "active": "true",
       "machines": [
-        "alio2-cr1-flp178",
-        "alio2-cr1-flp179"
+        "epn",
+        "localhost"
       ],
       "query": "dataframe:TOF/CRAWDATA",
       "samplingConditions": [
@@ -427,7 +320,6 @@
         "epn",
         "localhost"
       ],
-      "port": "30333",
       "query": "tofdigits:TOF/DIGITS/0;readoutwin:TOF/READOUTWINDOW/0;diafreq:TOF/DIAFREQ/0",
       "samplingConditions": [
         {
