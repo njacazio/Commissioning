@@ -1,156 +1,73 @@
 {
+  "dataSamplingPolicies": [
+    {
+      "active": "true",
+      "blocking": "false",
+      "id": "raw-local",
+      "machines": [
+        "epn",
+        "localhost"
+      ],
+      "query": "dataframe:TOF/CRAWDATA",
+      "samplingConditions": [
+        {
+          "condition": "random",
+          "fraction": "0.1",
+          "seed": "1234"
+        }
+      ]
+    },
+    {
+      "active": "true",
+      "blocking": "false",
+      "id": "digi-local",
+      "machines": [
+        "epn",
+        "localhost"
+      ],
+      "query": "tofdigits:TOF/DIGITS/0;readoutwin:TOF/READOUTWINDOW/0;diafreq:TOF/DIAFREQ/0",
+      "samplingConditions": [
+        {
+          "condition": "random",
+          "fraction": "0.1",
+          "seed": "1234"
+        }
+      ]
+    },
+    {
+      "active": "true",
+      "blocking": "false",
+      "id": "trkWTRD-local",
+      "machines": [
+        "mustbenomachine"
+      ],
+      "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0;trackITSTPCTRD:TRD/MATCH_ITSTPC/0;matchITSTPCTRDTOF:TOF/MTC_ITSTPCTRD/0;trigITSTPCTRD:TRD/TRGREC_ITSTPC/0",
+      "samplingConditions": [
+        {
+          "condition": "random",
+          "fraction": "1.0",
+          "seed": "1234"
+        }
+      ]
+    },
+    {
+      "active": "true",
+      "blocking": "false",
+      "id": "trk-clu-local",
+      "machines": [
+        "mustbenomachine"
+      ],
+      "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0",
+      "samplingConditions": [
+        {
+          "condition": "random",
+          "fraction": "1.0",
+          "seed": "1234"
+        }
+      ]
+    }
+  ],
   "qc": {
-    "config": {
-      "database": {
-        "implementation": "CCDB",
-        "host": "ali-qcdb.cern.ch:8083",
-        "username": "not_applicable",
-        "password": "not_applicable",
-        "name": "not_applicable"
-      },
-      "Activity": {
-        "number": "0"
-      },
-      "monitoring": {
-        "url": "influxdb-unix:///tmp/telegraf.sock"
-      },
-      "consul": {
-        "url": "http://localhost:8500"
-      },
-      "conditionDB": {
-        "url": "o2-ccdb.internal"
-      },
-      "bookkeeping": {
-        "url": "alio2-cr1-hv-web01.cern.ch:4001"
-      }
-    },
-    "tasks": {
-      "MergeMETOF": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "dataSource": {
-          "type": "dataSamplingPolicy",
-          "name": "trk-clu-local"
-        },
-        "taskParameters": {
-          "GID": "ITS-TPC,ITS-TPC-TOF,TPC",
-          "verbose": "false",
-          "minPtCut": "0.3f",
-          "etaCut": "0.8f",
-          "minNTPCClustersCut": "60",
-          "minDCACut": "100.f",
-          "minDCACutY": "10.f",
-          "grpFileName": "o2sim_grp.root",
-          "geomFileName": "o2sim_geometry-aligned.root"
-        },
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29750",
-        "mergingMode": "delta",
-        "localControl": "odc"
-      },
-      "MergeMETOFwTRD": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "dataSource": {
-          "type": "dataSamplingPolicy",
-          "name": "trkWTRD-local"
-        },
-        "taskParameters": {
-          "GID": "ITS-TPC,ITS-TPC-TRD,ITS-TPC-TOF,ITS-TPC-TRD-TOF,TPC",
-          "verbose": "false",
-          "minPtCut": "0.3f",
-          "etaCut": "0.8f",
-          "minNTPCClustersCut": "60",
-          "minDCACut": "100.f",
-          "minDCACutY": "10.f",
-          "grpFileName": "o2sim_grp.root",
-          "geomFileName": "o2sim_geometry-aligned.root"
-        },
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29753",
-        "mergingMode": "delta",
-        "localControl": "odc"
-      },
-      "TaskRaw": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TaskRaw",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "dataSource_comment": "The other type of dataSource is \"direct\", see basic-no-sampling.json.",
-        "dataSource": {
-          "type": "dataSamplingPolicy",
-          "name": "raw-local"
-        },
-        "taskParameters": {
-          "TimeWindowMin": "4096",
-          "TimeWindowMax": "1212416",
-          "NoiseThreshold": "1000",
-          "DebugCrateMultiplicity": "True"
-        },
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29752",
-        "mergingMode": "delta",
-        "localControl": "odc"
-      },
-      "TaskDigits": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TaskDigits",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "cycleDurationSeconds": "60",
-        "maxNumberCycles": "-1",
-        "dataSource_comment": "The other type of dataSource is \"direct\", see basic-no-sampling.json.",
-        "dataSource": {
-          "type": "dataSamplingPolicy",
-          "name": "digi-local"
-        },
-        "taskParameters": {
-          "PerChannel": "True",
-          "RangeMaxMultiplicity": "1000",
-          "NbinsMultiplicity": "1000",
-          "NoiseClassSelection": "0"
-        },
-        "location": "local",
-        "localMachines": [
-          "epn",
-          "localhost"
-        ],
-        "remoteMachine": "alio2-cr1-qc03.cern.ch",
-        "remotePort": "29751",
-        "mergingMode": "delta",
-        "movingWindows" : ["Multiplicity/Integrated"],
-        "localControl": "odc",
-        "mergersPerLayer": [
-          "3",
-          "1"
-        ]
-      }
-    },
     "aggregators": {
       "TOFQuality": {
         "active": "true",
@@ -160,7 +77,7 @@
             "name": "CheckRawMultiplicity",
             "type": "Check"
           },
-					{
+          {
             "name": "CheckSlotPartMask",
             "type": "Check"
           }
@@ -170,190 +87,415 @@
         "policy": "OnAny"
       }
     },
-    "postprocessing": {
-			"TOFQualityTask": {
+    "checks": {
+      "CheckCompressedData": {
         "active": "true",
-        "className": "o2::quality_control_modules::common::QualityTask",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "qualityGroups": [
+        "checkParameters": {
+          "DiagnosticThresholdPerSlot": "10"
+        },
+        "className": "o2::quality_control_modules::tof::CheckCompressedData",
+        "dataSource": [
           {
-            "name": "global",
-            "title": "GLOBAL TOF QUALITY",
-            "path": "TOF/QO",
-            "inputObjects": [
-              {
-                "name": "TOFQuality/TOFQuality",
-                "title": "TOF Quality",
-                "messageBad": "Inform TOF on-call",
-                "messageMedium": "Add bookkeeping entry",
-                "messageGood": "All checks are OK!",
-                "messageNull": ""
-              }
-            ]
+            "MOs": [
+              "hDiagnostic"
+            ],
+            "name": "TaskRaw",
+            "type": "Task"
           }
         ],
-        "initTrigger": [
-          "userorcontrol"
-        ],
-        "updateTrigger": [
-          "newobject:qcdb:TOF/MO/TaskDigits/Multiplicity/Integrated"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
-        ]
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
       },
+      "CheckDiagnostics": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::CheckDiagnostics",
+        "dataSource": [
+          {
+            "MOs": [
+              "RDHCounterCrate0"
+            ],
+            "name": "TaskRaw",
+            "type": "Task"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      },
+      "CheckLostOrbits": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::CheckLostOrbits",
+        "dataSource": [
+          {
+            "MOs": [
+              "OrbitsInTFEfficiency"
+            ],
+            "name": "PostLostOrbits",
+            "type": "PostProcessing"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      },
+      "CheckRawMultiplicity": {
+        "active": "true",
+        "checkParameters": {
+          "MaxFractAtLowMult": "10",
+          "MaxFractAtZeroMult": "3",
+          "MaxRawHits": "5000",
+          "MinRawHits": "0",
+          "RunningMode": "0"
+        },
+        "className": "o2::quality_control_modules::tof::CheckRawMultiplicity",
+        "dataSource": [
+          {
+            "MOs": [
+              "Multiplicity/Integrated",
+              "Multiplicity/SectorIA",
+              "Multiplicity/SectorOA",
+              "Multiplicity/SectorIC",
+              "Multiplicity/SectorOC"
+            ],
+            "name": "TaskDigits",
+            "type": "Task"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      },
+      "CheckSlotPartMask": {
+        "active": "true",
+        "checkParameters": {},
+        "className": "o2::quality_control_modules::tof::CheckSlotPartMask",
+        "dataSource": [
+          {
+            "MOs": [
+              "hSlotPartMask"
+            ],
+            "name": "TaskRaw",
+            "type": "Task"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      },
+      "CheckTOFRawHitMap": {
+        "active": "true",
+        "checkParameters": {
+          "EnablePadPerMismatch": "false",
+          "EnableReferenceHitMap": "true",
+          "MaxHitMoreThanRef": "2",
+          "MaxRefMoreThanHit": "317",
+          "PadHighX": "1.0",
+          "PadHighY": "1.0",
+          "PadLowX": "0.6",
+          "PadLowY": "0.9"
+        },
+        "className": "o2::quality_control_modules::tof::CheckHitMap",
+        "dataSource": [
+          {
+            "MOs": [
+              "HitMapNoiseFiltered"
+            ],
+            "name": "TaskDigits",
+            "type": "Task"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      },
+      "TOFRawsTime": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::CheckRawTime",
+        "dataSource": [
+          {
+            "MOs": [
+              "Time/Integrated",
+              "Time/SectorIA",
+              "Time/SectorOA",
+              "Time/SectorIC",
+              "Time/SectorOC"
+            ],
+            "name": "TaskDigits",
+            "type": "Task"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      },
+      "TOFRawsToT": {
+        "active": "false",
+        "checkParameters": {
+          "MaxRawTime": "20",
+          "MinRawTime": "0"
+        },
+        "className": "o2::quality_control_modules::tof::CheckRawToT",
+        "dataSource": [
+          {
+            "MOs": [
+              "ToT/Integrated",
+              "ToT/SectorIA",
+              "ToT/SectorOA",
+              "ToT/SectorIC",
+              "ToT/SectorOC"
+            ],
+            "name": "TaskDigits",
+            "type": "Task"
+          }
+        ],
+        "detectorName": "TOF",
+        "moduleName": "QcTOF",
+        "policy": "OnAny"
+      }
+    },
+    "config": {
+      "Activity": {
+        "number": "0"
+      },
+      "bookkeeping": {
+        "url": "alio2-cr1-hv-web01.cern.ch:4001"
+      },
+      "conditionDB": {
+        "url": "o2-ccdb.internal"
+      },
+      "consul": {
+        "url": "http://localhost:8500"
+      },
+      "database": {
+        "host": "ali-qcdb.cern.ch:8083",
+        "implementation": "CCDB",
+        "name": "not_applicable",
+        "password": "not_applicable",
+        "username": "not_applicable"
+      },
+      "monitoring": {
+        "url": "influxdb-unix:///tmp/telegraf.sock"
+      }
+    },
+    "postprocessing": {
       "PostHitMap": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::PostProcessHitMap",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
         "customization": {
           "DrawRefOnTop": "false"
         },
+        "detectorName": "TOF",
         "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
+        "stopTrigger": [
           "userorcontrol"
         ],
         "updateTrigger": [
           "newobject:qcdb:TOF/MO/TaskDigits/HitMapNoiseFiltered"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
         ]
       },
       "PostHitMapRef": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::PostProcessHitMap",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
         "customization": {
           "DrawRefOnTop": "true"
         },
+        "detectorName": "TOF",
         "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
+        "stopTrigger": [
           "userorcontrol"
         ],
         "updateTrigger": [
           "newobject:qcdb:TOF/MO/TaskDigits/HitMapNoiseFiltered"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
         ]
       },
-      "TOFTrendLHCphase": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::TrendingCalibLHCphase",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "dataSourceURL": "http://alice-ccdb.cern.ch",
-        "dataSources": [
-          {
-            "type": "ccdb",
-            "path": "/TOF/Calib/LHCphase/",
-            "names": [
-              "LHC_phase",
-              "LHC_phase_startValidity"
-            ],
-            "reductorName": "o2::quality_control_modules::common::TH1Reductor",
-            "moduleName": "QcCommon"
-          }
-        ],
-        "plots": [
-          {
-            "name": "LHC_phase",
-            "title": "LHC phase",
-            "varexp": "phase:time",
-            "selection": "",
-            "option": "*L"
-          },
-          {
-            "name": "LHC_phase_startval",
-            "title": "LHC phase",
-            "varexp": "endValidity:startValidity",
-            "selection": "",
-            "option": "*L"
-          }
-        ],
-        "initTrigger": [
-          "once"
-        ],
-        "updateTrigger": [
-          "newobject:ccdb:TOF/Calib/LHCphase/"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
-        ]
-      },	
       "PostLostOrbits": {
         "active": "true",
         "className": "o2::quality_control_modules::tof::PostProcessingLostOrbits",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
         "customization": [
           {
             "name": "Nbins",
             "value": "1100"
           }
         ],
+        "detectorName": "TOF",
         "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
+        "stopTrigger": [
           "userorcontrol"
         ],
         "updateTrigger": [
           "newobject:qcdb:TOF/MO/TaskDigits/mw/OrbitVsCrate"
+        ]
+      },
+      "TOFQualityTask": {
+        "active": "true",
+        "className": "o2::quality_control_modules::common::QualityTask",
+        "detectorName": "TOF",
+        "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
+        "qualityGroups": [
+          {
+            "inputObjects": [
+              {
+                "messageBad": "Inform TOF on-call",
+                "messageGood": "All checks are OK!",
+                "messageMedium": "Add bookkeeping entry",
+                "messageNull": "",
+                "name": "TOFQuality/TOFQuality",
+                "title": "TOF Quality"
+              }
+            ],
+            "name": "global",
+            "path": "TOF/QO",
+            "title": "GLOBAL TOF QUALITY"
+          }
         ],
         "stopTrigger": [
           "userorcontrol"
+        ],
+        "updateTrigger": [
+          "newobject:qcdb:TOF/MO/TaskDigits/Multiplicity/Integrated"
         ]
       },
-			"TOFTrendingOrbits": {
+      "TOFTrendLHCphase": {
         "active": "true",
-        "className": "o2::quality_control::postprocessing::TrendingTask",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "producePlotsOnUpdate": "true",
+        "className": "o2::quality_control_modules::tof::TrendingCalibLHCphase",
+        "dataSourceURL": "http://alice-ccdb.cern.ch",
         "dataSources": [
           {
-            "type": "repository",
-            "path": "TOF/MO/PostLostOrbits",
+            "moduleName": "QcCommon",
+            "names": [
+              "LHC_phase",
+              "LHC_phase_startValidity"
+            ],
+            "path": "/TOF/Calib/LHCphase/",
+            "reductorName": "o2::quality_control_modules::common::TH1Reductor",
+            "type": "ccdb"
+          }
+        ],
+        "detectorName": "TOF",
+        "initTrigger": [
+          "once"
+        ],
+        "moduleName": "QcTOF",
+        "plots": [
+          {
+            "name": "LHC_phase",
+            "option": "*L",
+            "selection": "",
+            "title": "LHC phase",
+            "varexp": "phase:time"
+          },
+          {
+            "name": "LHC_phase_startval",
+            "option": "*L",
+            "selection": "",
+            "title": "LHC phase",
+            "varexp": "endValidity:startValidity"
+          }
+        ],
+        "stopTrigger": [
+          "userorcontrol"
+        ],
+        "updateTrigger": [
+          "newobject:ccdb:TOF/Calib/LHCphase/"
+        ]
+      },
+      "TOFTrendingHits": {
+        "active": "true",
+        "className": "o2::quality_control::postprocessing::TrendingTask",
+        "dataSources": [
+          {
+            "moduleName": "QcCommon",
+            "names": [
+              "Integrated"
+            ],
+            "path": "TOF/MO/TaskDigits/mw/Multiplicity",
+            "reductorName": "o2::quality_control_modules::common::TH1Reductor",
+            "type": "repository"
+          }
+        ],
+        "detectorName": "TOF",
+        "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
+        "plots": [
+          {
+            "name": "mean_of_hits",
+            "option": "*L",
+            "selection": "",
+            "title": "Mean trend of TOF hits",
+            "varexp": "Integrated.mean:time"
+          }
+        ],
+        "producePlotsOnUpdate": "true",
+        "stopTrigger": [
+          "userorcontrol"
+        ],
+        "updateTrigger": [
+          "newobject:qcdb:TOF/MO/TaskDigits/mw/Multiplicity/Integrated"
+        ]
+      },
+      "TOFTrendingOrbits": {
+        "active": "true",
+        "className": "o2::quality_control::postprocessing::TrendingTask",
+        "dataSources": [
+          {
+            "moduleName": "QcTOF",
             "names": [
               "OrbitsInTFEfficiency"
             ],
+            "path": "TOF/MO/PostLostOrbits",
             "reductorName": "o2::quality_control_modules::tof::TH1ReductorTOF",
-            "moduleName": "QcTOF"
+            "type": "repository"
           }
         ],
+        "detectorName": "TOF",
+        "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
         "plots": [
           {
+            "graphAxisLabel": "efficiency_{compression chain}:time",
             "name": "maxpeak_orbitsread",
-            "title": "Max peak orbits read efficiency",
-            "varexp": "OrbitsInTFEfficiency.maxpeak:time",
-            "selection": "",
             "option": "*L",
-            "graphAxisLabel": "efficiency_{compression chain}:time"
+            "selection": "",
+            "title": "Max peak orbits read efficiency",
+            "varexp": "OrbitsInTFEfficiency.maxpeak:time"
           },
           {
+            "graphAxisLabel": "efficiency_{readout}:time",
             "name": "average_orbitsread",
-            "title": "Average orbits read efficiency",
-            "varexp": "OrbitsInTFEfficiency.mean:time",
-            "selection": "",
             "option": "*L",
-            "graphAxisLabel": "efficiency_{readout}:time"
+            "selection": "",
+            "title": "Average orbits read efficiency",
+            "varexp": "OrbitsInTFEfficiency.mean:time"
           }
         ],
-        "initTrigger": [
+        "producePlotsOnUpdate": "true",
+        "stopTrigger": [
           "userorcontrol"
         ],
         "updateTrigger": [
           "newobject:qcdb:TOF/MO/PostLostOrbits/OrbitsInTFEfficiency"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
         ]
-       },
+      },
       "TOFTrendingRate": {
         "active": "false",
         "className": "o2::quality_control_modules::tof::TrendingRate",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
         "customization": [
           {
             "name": "ThresholdSgn",
@@ -366,334 +508,194 @@
         ],
         "dataSources": [
           {
-            "type": "repository",
-            "path": "TOF/MO/TaskDigits",
+            "moduleName": "QcCommon",
             "names": [
               "HitMap",
               "Multiplicity/VsBC"
             ],
+            "path": "TOF/MO/TaskDigits",
             "reductorName": "o2::quality_control_modules::common::TH1Reductor",
-            "moduleName": "QcCommon"
+            "type": "repository"
           }
         ],
+        "detectorName": "TOF",
+        "initTrigger": [
+          "userorcontrol"
+        ],
+        "moduleName": "QcTOF",
         "plots": [
           {
             "name": "interaction_rate",
-            "title": "IR from TOF hits",
-            "varexp": "collisionRate:time",
+            "option": "*L",
             "selection": "",
-            "option": "*L"
+            "title": "IR from TOF hits",
+            "varexp": "collisionRate:time"
           },
           {
             "name": "noise_rate",
-            "title": "Noise Rate per channel",
-            "varexp": "noiseRate:time",
+            "option": "*L",
             "selection": "",
-            "option": "*L"
+            "title": "Noise Rate per channel",
+            "varexp": "noiseRate:time"
           },
           {
             "name": "active_channels",
-            "title": "Active channels",
-            "varexp": "activeChannels:time",
+            "option": "*L",
             "selection": "",
-            "option": "*L"
+            "title": "Active channels",
+            "varexp": "activeChannels:time"
           },
           {
             "name": "pile_up",
-            "title": "Pilup",
-            "varexp": "pileup:time",
+            "option": "*L",
             "selection": "",
-            "option": "*L"
+            "title": "Pilup",
+            "varexp": "pileup:time"
           },
           {
             "name": "n_int_bc",
-            "title": "N Inetraction BCs",
-            "varexp": "nIBC:time",
+            "option": "*L",
             "selection": "",
-            "option": "*L"
+            "title": "N Inetraction BCs",
+            "varexp": "nIBC:time"
           }
         ],
-        "initTrigger": [
+        "stopTrigger": [
           "userorcontrol"
         ],
         "updateTrigger": [
           "newobject:qcdb:TOF/MO/TaskDigits/HitMap"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
-        ]
-      },
-      "TOFTrendingHits": {
-        "active": "true",
-        "className": "o2::quality_control::postprocessing::TrendingTask",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "producePlotsOnUpdate": "true",
-        "dataSources": [
-          {
-            "type": "repository",
-            "path": "TOF/MO/TaskDigits/mw/Multiplicity",
-            "names": [
-              "Integrated"
-            ],
-            "reductorName": "o2::quality_control_modules::common::TH1Reductor",
-            "moduleName": "QcCommon"
-          }
-        ],
-        "plots": [
-          {
-            "name": "mean_of_hits",
-            "title": "Mean trend of TOF hits",
-            "varexp": "Integrated.mean:time",
-            "selection": "",
-            "option": "*L"
-          }
-        ],
-        "initTrigger": [
-          "userorcontrol"
-        ],
-        "updateTrigger": [
-          "newobject:qcdb:TOF/MO/TaskDigits/mw/Multiplicity/Integrated"
-        ],
-        "stopTrigger": [
-          "userorcontrol"
         ]
       }
     },
-    "checks": {
-			"CheckLostOrbits": {
+    "tasks": {
+      "MergeMETOF": {
         "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckLostOrbits",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "policy": "OnAny",
-        "dataSource": [
-          {
-            "type": "PostProcessing",
-            "name": "PostLostOrbits",
-            "MOs": [
-              "OrbitsInTFEfficiency"
-            ]
-          }
-        ]
-      },
-      "CheckDiagnostics": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckDiagnostics",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "policy": "OnAny",
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskRaw",
-            "MOs": [
-              "RDHCounterCrate0"
-            ]
-          }
-        ]
-      },
-      "CheckCompressedData": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckCompressedData",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "policy": "OnAny",
-        "checkParameters": {
-          "DiagnosticThresholdPerSlot": "10"
-        },
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskRaw",
-            "MOs": [
-              "hDiagnostic"
-            ]
-          }
-        ]
-      },
-      "CheckRawMultiplicity": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckRawMultiplicity",
-        "moduleName": "QcTOF",
-        "policy": "OnAny",
-        "detectorName": "TOF",
-        "checkParameters": {
-          "RunningMode": "0",
-          "MinRawHits": "0",
-          "MaxRawHits": "5000",
-          "MaxFractAtZeroMult": "3",
-          "MaxFractAtLowMult": "10"
-        },
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskDigits",
-            "MOs": [
-              "Multiplicity/Integrated",
-              "Multiplicity/SectorIA",
-              "Multiplicity/SectorOA",
-              "Multiplicity/SectorIC",
-              "Multiplicity/SectorOC"
-            ]
-          }
-        ]
-      },
-      "CheckSlotPartMask": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckSlotPartMask",
-        "moduleName": "QcTOF",
-        "detectorName": "TOF",
-        "policy": "OnAny",
-        "checkParameters": {},
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskRaw",
-            "MOs": [
-              "hSlotPartMask"
-            ]
-          }
-        ]
-      },
-      "TOFRawsTime": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckRawTime",
-        "moduleName": "QcTOF",
-        "policy": "OnAny",
-        "detectorName": "TOF",
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskDigits",
-            "MOs": [
-              "Time/Integrated",
-              "Time/SectorIA",
-              "Time/SectorOA",
-              "Time/SectorIC",
-              "Time/SectorOC"
-            ]
-          }
-        ]
-      },
-      "TOFRawsToT": {
-        "active": "false",
-        "className": "o2::quality_control_modules::tof::CheckRawToT",
-        "moduleName": "QcTOF",
-        "policy": "OnAny",
-        "checkParameters": {
-          "MinRawTime": "0",
-          "MaxRawTime": "20"
+        "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
+        "cycleDurationSeconds": "60",
+        "dataSource": {
+          "name": "trk-clu-local",
+          "type": "dataSamplingPolicy"
         },
         "detectorName": "TOF",
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskDigits",
-            "MOs": [
-              "ToT/Integrated",
-              "ToT/SectorIA",
-              "ToT/SectorOA",
-              "ToT/SectorIC",
-              "ToT/SectorOC"
-            ]
-          }
-        ]
-      },
-      "CheckTOFRawHitMap": {
-        "active": "true",
-        "className": "o2::quality_control_modules::tof::CheckHitMap",
+        "localControl": "odc",
+        "localMachines": [
+          "epn",
+          "localhost"
+        ],
+        "location": "local",
+        "maxNumberCycles": "-1",
+        "mergingMode": "delta",
         "moduleName": "QcTOF",
-        "policy": "OnAny",
-        "detectorName": "TOF",
-        "checkParameters": {
-          "EnableReferenceHitMap": "true",
-          "PadLowY": "0.9",
-          "PadHighY": "1.0",
-          "PadLowX": "0.6",
-          "PadHighX": "1.0",
-          "EnablePadPerMismatch": "false",
-          "MaxRefMoreThanHit":"317",
-          "MaxHitMoreThanRef":"2"
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
+        "remotePort": "29750",
+        "taskParameters": {
+          "GID": "ITS-TPC,ITS-TPC-TOF,TPC",
+          "etaCut": "0.8f",
+          "geomFileName": "o2sim_geometry-aligned.root",
+          "grpFileName": "o2sim_grp.root",
+          "minDCACut": "100.f",
+          "minDCACutY": "10.f",
+          "minNTPCClustersCut": "60",
+          "minPtCut": "0.3f",
+          "verbose": "false"
+        }
+      },
+      "MergeMETOFwTRD": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::TOFMatchedTracks",
+        "cycleDurationSeconds": "60",
+        "dataSource": {
+          "name": "trkWTRD-local",
+          "type": "dataSamplingPolicy"
         },
-        "dataSource": [
-          {
-            "type": "Task",
-            "name": "TaskDigits",
-            "MOs": [
-              "HitMapNoiseFiltered"
-            ]
-          }
-        ]
+        "detectorName": "TOF",
+        "localControl": "odc",
+        "localMachines": [
+          "epn",
+          "localhost"
+        ],
+        "location": "local",
+        "maxNumberCycles": "-1",
+        "mergingMode": "delta",
+        "moduleName": "QcTOF",
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
+        "remotePort": "29753",
+        "taskParameters": {
+          "GID": "ITS-TPC,ITS-TPC-TRD,ITS-TPC-TOF,ITS-TPC-TRD-TOF,TPC",
+          "etaCut": "0.8f",
+          "geomFileName": "o2sim_geometry-aligned.root",
+          "grpFileName": "o2sim_grp.root",
+          "minDCACut": "100.f",
+          "minDCACutY": "10.f",
+          "minNTPCClustersCut": "60",
+          "minPtCut": "0.3f",
+          "verbose": "false"
+        }
+      },
+      "TaskDigits": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::TaskDigits",
+        "cycleDurationSeconds": "60",
+        "dataSource": {
+          "name": "digi-local",
+          "type": "dataSamplingPolicy"
+        },
+        "dataSource_comment": "The other type of dataSource is \"direct\", see basic-no-sampling.json.",
+        "detectorName": "TOF",
+        "localControl": "odc",
+        "localMachines": [
+          "epn",
+          "localhost"
+        ],
+        "location": "local",
+        "maxNumberCycles": "-1",
+        "mergersPerLayer": [
+          "3",
+          "1"
+        ],
+        "mergingMode": "delta",
+        "moduleName": "QcTOF",
+        "movingWindows": [
+          "Multiplicity/Integrated"
+        ],
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
+        "remotePort": "29751",
+        "taskParameters": {
+          "NbinsMultiplicity": "1000",
+          "NoiseClassSelection": "0",
+          "PerChannel": "True",
+          "RangeMaxMultiplicity": "1000"
+        }
+      },
+      "TaskRaw": {
+        "active": "true",
+        "className": "o2::quality_control_modules::tof::TaskRaw",
+        "cycleDurationSeconds": "60",
+        "dataSource": {
+          "name": "raw-local",
+          "type": "dataSamplingPolicy"
+        },
+        "dataSource_comment": "The other type of dataSource is \"direct\", see basic-no-sampling.json.",
+        "detectorName": "TOF",
+        "localControl": "odc",
+        "localMachines": [
+          "epn",
+          "localhost"
+        ],
+        "location": "local",
+        "maxNumberCycles": "-1",
+        "mergingMode": "delta",
+        "moduleName": "QcTOF",
+        "remoteMachine": "alio2-cr1-qc03.cern.ch",
+        "remotePort": "29752",
+        "taskParameters": {
+          "DebugCrateMultiplicity": "True",
+          "NoiseThreshold": "1000",
+          "TimeWindowMax": "1212416",
+          "TimeWindowMin": "4096"
+        }
       }
     }
-  },
-  "dataSamplingPolicies": [
-    {
-      "id": "raw-local",
-      "active": "true",
-      "machines": [
-        "epn",
-        "localhost"
-      ],
-      "query": "dataframe:TOF/CRAWDATA",
-      "samplingConditions": [
-        {
-          "condition": "random",
-          "fraction": "0.1",
-          "seed": "1234"
-        }
-      ],
-      "blocking": "false"
-    },
-    {
-      "id": "digi-local",
-      "active": "true",
-      "machines": [
-        "epn",
-        "localhost"
-      ],
-      "query": "tofdigits:TOF/DIGITS/0;readoutwin:TOF/READOUTWINDOW/0;diafreq:TOF/DIAFREQ/0",
-      "samplingConditions": [
-        {
-          "condition": "random",
-          "fraction": "0.1",
-          "seed": "1234"
-        }
-      ],
-      "blocking": "false"
-    },
-    {
-      "id": "trkWTRD-local",
-      "active": "true",
-      "machines": [
-        "mustbenomachine"
-      ],
-      "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0;trackITSTPCTRD:TRD/MATCH_ITSTPC/0;matchITSTPCTRDTOF:TOF/MTC_ITSTPCTRD/0;trigITSTPCTRD:TRD/TRGREC_ITSTPC/0",
-      "samplingConditions": [
-        {
-          "condition": "random",
-          "fraction": "1.0",
-          "seed": "1234"
-        }
-      ],
-      "blocking": "false"
-    },
-    {
-      "id": "trk-clu-local",
-      "active": "true",
-      "machines": [
-        "mustbenomachine"
-      ],
-      "query": "matchITSTPCTOF:TOF/MTC_ITSTPC/0;trackITSTPC:GLO/TPCITS/0;trackITSTPCABREFS:GLO/TPCITSAB_REFS/0;trackITSTPCABCLID:GLO/TPCITSAB_CLID/0;trackTPC:TPC/TRACKS/0;trackTPCClRefs:TPC/CLUSREFS/0;tofcluster:TOF/CLUSTERS/0",
-      "samplingConditions": [
-        {
-          "condition": "random",
-          "fraction": "1.0",
-          "seed": "1234"
-        }
-      ],
-      "blocking": "false"
-    }
-  ]
+  }
 }
