@@ -11,6 +11,7 @@ import sys
 import os
 import tqdm
 import inspect
+from plotMakers import plot2DPIDPlots
 
 if 1:
     from ROOT import gInterpreter
@@ -544,6 +545,7 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
     if 1:
         for i in ["Pi", "Ka", "Pr"]:
             hd = drawhisto(f"Delta{i}T0AC_vs_fPt")
+            plot2DPIDPlots.do_plot(hd)
 
     # Drawing the resolution of the T-TExpPi-Tev with the FT0
     if do_draw_resolution_with_FT0:
@@ -624,14 +626,14 @@ def main(input_file_name="${HOME}/cernbox/Share/Sofia/LHC22m_523308_apass3_relva
             can.Update()
             # input("Press enter to continue")
         ptlabel.Draw()
-        tit.Draw()
+        ptlabel.Draw()
         draw_nice_canvas("etaAlignment")
         draw_nice_frame(None, result_arr.At(1), [-100, 100], result_arr.At(1), "ps")
         result_arr.At(1).Draw("SAME")
         result_arr.At(2).Draw("same")
         leg.Draw()
         ptlabel.Draw()
-        tit.Draw()
+        ptlabel.Draw()
 
     # Time alignment and resolution vs phi for eta slices
     if 1:
