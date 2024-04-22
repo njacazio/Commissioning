@@ -85,10 +85,12 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
          particle="Pi",
          normalize=True,
          do_fit=True,
-         more_labels=["ALICE Performance", "pp #sqrt{#it{s}} = 13.6 TeV"],
+         more_labels=["ALICE Performance", 
+                      "pp #sqrt{#it{s}} = 13.6 TeV"],
          range_delta=[-1000, 1000]):
     h = get_from_file(input_filename, f"Delta{particle}TOF_vs_fPt")
     h = get_from_file(input_filename, f"Delta{particle}T0AC_vs_fPt")
+    h = get_from_file(input_filename, f"Delta{particle}T0AC_vs_fP")
     draw_nice_canvas(h.GetName())
     h.Draw("COL")
     if range_delta is not None:
@@ -98,6 +100,7 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
               1: [0.99, 1.01],
               1: [1.49, 1.51]}
     slices = {}
+    print("Slices")
     for i in range(12):
         slices[i] = [0.4+(1.6-0.4)/12 * i, 0.4+(1.6-0.4)/12 * (i+1)]
         print(slices[i])
@@ -106,12 +109,14 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
     g = TGraphErrors()
     g.GetXaxis().SetTitle(h.GetXaxis().GetTitle())
     g.GetXaxis().SetTitleOffset(h.GetXaxis().GetTitleOffset())
-    g.GetYaxis().SetTitle(h.GetYaxis().GetTitle())
+    yt = h.GetYaxis().GetTitle().replace("(ps)", "").strip()
+    g.GetYaxis().SetTitle(f"#sigma({yt}) (ps)")
     g.GetYaxis().SetTitleOffset(h.GetYaxis().GetTitleOffset())
     g.SetMarkerStyle(20)
 
     for i in slices:
-        pt_bins = [h.GetXaxis().FindBin(slices[i][0]), h.GetXaxis().FindBin(slices[i][1])]
+        pt_bins = [h.GetXaxis().FindBin(slices[i][0]+0.0001), 
+                   h.GetXaxis().FindBin(slices[i][1]-0.0001)]
         pt_actual = [h.GetXaxis().GetBinLowEdge(pt_bins[0]), h.GetXaxis().GetBinUpEdge(pt_bins[1])]
         pt_slice = h.GetXaxis().GetTitle().split(" ")
         pt_slice[1] = pt_slice[1].strip().strip("(").strip(")")
@@ -149,14 +154,14 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
             xleft = 0.22
             draw_label("Gaussian model", xleft, ystartleft, align=11)
             ystartleft -= 0.05
-            draw_label(f"#mu = {fun.GetParameter(1):.2f} ps", xleft, ystartleft, align=11)
+            draw_label(f"#mu = {fun.GetParameter(1):.2f} #pm {fun.GetParError(1):.2f} ps", xleft, ystartleft, align=11)
             ystartleft -= 0.05
-            draw_label(f"#sigma = {fun.GetParameter(2):.2f} ps", xleft, ystartleft, align=11)
+            draw_label(f"#sigma = {fun.GetParameter(2):.2f} #pm {fun.GetParError(2):.2f} ps", xleft, ystartleft, align=11)
             g.SetPoint(g.GetN(), sum(pt_actual)/2, fun.GetParameter(2))
             g.SetPointError(g.GetN()-1, (pt_actual[1]-pt_actual[0])/2, fun.GetParError(2))
 
     draw_nice_canvas("sigma_vs_pt")
-    g.Draw("ALP")
+    g.Draw("AP")
 
     cans = update_all_canvases()
     input("Press enter to continue")
