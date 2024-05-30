@@ -26,6 +26,11 @@ if 1:
 
 def do_plot(histogram, do_draw=False, plot_particles=True):
     if do_draw:
+        ytit = histogram.GetYaxis().GetTitle()
+        ytit = ytit.replace("t-", "#it{t}-")
+        ytit = ytit.replace("t_", "#it{t}_")
+        ytit = ytit.replace("_{ev}", "_{ev.}")
+        histogram.GetYaxis().SetTitle(ytit)
         histogram.Draw("COL")
     if not plot_particles:
         return
@@ -34,14 +39,24 @@ def do_plot(histogram, do_draw=False, plot_particles=True):
         if i in histogram.GetName():
             particle = i
             break
-    if particle == "Pi":
-        draw_label("#pi", 0.24, 0.58, size=0.04)
-        draw_label("K", 0.33, 0.74, size=0.04)
-        draw_label("p", 0.45, 0.83, size=0.04)
-    elif particle == "Ka":
-        draw_label("#pi", 0.4, 0.43, size=0.04)
-        draw_label("K", 0.24, 0.6, size=0.04)
-        draw_label("p", 0.41, 0.81, size=0.04)
+    if "fPt" in histogram.GetName():
+        if particle == "Pi":
+            draw_label("#pi", 0.24, 0.58, size=0.05)
+            draw_label("K", 0.33, 0.74, size=0.05)
+            draw_label("p", 0.45, 0.83, size=0.05)
+        elif particle == "Ka":
+            draw_label("#pi", 0.46, 0.47, size=0.05)
+            draw_label("K", 0.29, 0.54, size=0.05)
+            draw_label("p", 0.54, 0.69, size=0.05)
+    else:
+        if particle == "Pi":
+            draw_label("#pi", 0.24, 0.58, size=0.05)
+            draw_label("K", 0.33, 0.74, size=0.05)
+            draw_label("p", 0.45, 0.83, size=0.05)
+        elif particle == "Ka":
+            draw_label("#pi", 0.46, 0.47, size=0.05)
+            draw_label("K", 0.29, 0.54, size=0.05)
+            draw_label("p", 0.54, 0.69, size=0.05)
 
 
 def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
@@ -49,7 +64,8 @@ def main(input_filename="/tmp/TOFRESOLHC22m_pass3_1.40_1.50.root",
          evtime="T0AC",
          out_path="/home/njacazio/Overleaf/TOFPerformanceRun3/Common/img/"):
     definenicepalette()
-    h = get_from_file(input_filename, f"Delta{particle}{evtime}_vs_fPt")
+    # h = get_from_file(input_filename, f"Delta{particle}{evtime}_vs_fPt")
+    h = get_from_file(input_filename, f"Delta{particle}{evtime}_vs_fP")
     can = draw_nice_canvas(h.GetName())
     do_plot(h, do_draw=True)
     update_all_canvases()
